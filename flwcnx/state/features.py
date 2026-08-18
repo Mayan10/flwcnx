@@ -60,6 +60,21 @@ class Standardizer:
     def transform(self, values: np.ndarray) -> np.ndarray:
         return (values - self.mean) / self.std
 
+    def fit_windows(self, x: np.ndarray, columns: tuple[str, ...]) -> Standardizer:
+        """Fit from already windowed inputs, (n, lookback, n_features).
+
+        Needed because the split is computed on windows, not on frame rows, and
+        the standardiser must see the training windows only. Overlapping
+        windows reweight the sample slightly, which is harmless next to the
+        alternative of fitting on data the model is about to be tested on.
+        """
+        flat = np.asarray(x, dtype=float).reshape(-1, x.shape[-1])
+        self.mean = np.nanmean(flat, axis=0)
+        std = np.nanstd(flat, axis=0)
+        self.std = np.where(std > 1e-8, std, 1.0)
+        self.columns = tuple(columns)
+        return self
+
     def inverse_transform_target(self, values: np.ndarray, target_index: int = 0) -> np.ndarray:
         """Undo standardisation for the target channel only.
 
@@ -241,3 +256,16 @@ def flatten_for_tabular(sequences: SequenceSet, *, horizon_step: int | None = No
     x = sequences.x.reshape(n, -1)
     y = sequences.y.mean(axis=1) if horizon_step is None else sequences.y[:, horizon_step]
     return x, y
+
+
+def standardize_sequences(sequences: SequenceSet, standardizer: Standardizer) -> SequenceSet:
+    """Apply a fitted standardiser to a SequenceSet's inputs.
+
+    The target stays in Mbps. Only `x` is scaled.
+    """
+    scaled = standardizer.transform(sequences.x.astype(float)).astype(np.float32)
+    return SequenceSet(
+        x=scaled, y=sequences.y, phase=sequences.phase, regime=sequences.regime,
+        origin_time=sequences.origin_time, segment=sequences.segment,
+        feature_names=sequences.feature_names, target_index=sequences.target_index,
+    )
