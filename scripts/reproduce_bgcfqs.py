@@ -33,7 +33,6 @@ import argparse
 import json
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from flwcnx.calibrate.bgcfqs import BGCFQS
@@ -47,7 +46,7 @@ from flwcnx.config import (
     seed_everything,
 )
 from flwcnx.eval.figures import conditional_over_rate
-from flwcnx.eval.metrics import conditional_metrics, summarise
+from flwcnx.eval.metrics import conditional_metrics
 from flwcnx.eval.runner import prepare
 from flwcnx.forecast.baselines import XGBoostForecaster
 from flwcnx.ingest.replay import ReplaySource

@@ -23,7 +23,13 @@ import numpy as np
 import pandas as pd
 
 from flwcnx.config import PERIOD_SECONDS, TARGET_COL, TIME_COL
-from flwcnx.ingest.base import RawWindow, Source, iter_windows_from_frame, segment_frame, validate_frame
+from flwcnx.ingest.base import (
+    RawWindow,
+    Source,
+    iter_windows_from_frame,
+    segment_frame,
+    validate_frame,
+)
 
 
 @dataclass(frozen=True)

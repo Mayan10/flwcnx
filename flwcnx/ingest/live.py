@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -86,7 +86,7 @@ class LiveSource(Source):
             self.connect()
         rows = []
         for _ in range(int(seconds * self.config.poll_hz)):
-            rows.append(self._poll_once(datetime.now(timezone.utc)))
+            rows.append(self._poll_once(datetime.now(UTC)))
         self._rows.extend(rows)
         return self.load_frame()
 

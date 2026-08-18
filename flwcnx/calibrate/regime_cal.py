@@ -45,9 +45,9 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from flwcnx.config import BGCFQSConfig, CalibrationConfig
 from flwcnx.calibrate.bgcfqs import bgcfqs_on_residuals
 from flwcnx.calibrate.conformal import fit_conformal
+from flwcnx.config import BGCFQSConfig, CalibrationConfig
 from flwcnx.state.regime import GLOBAL_LABEL, FallbackReport, RegimeAssigner, build_fallback_map
 
 #: How a per regime operating point is chosen.

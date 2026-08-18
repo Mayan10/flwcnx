@@ -53,7 +53,7 @@ from flwcnx.eval.metrics import (
 from flwcnx.eval.splits import check_no_leak, contiguous_82, temporal_split
 from flwcnx.forecast.baselines import build_baseline
 from flwcnx.forecast.starnet import StarNet, StarNetNoAttention, StarNetNoPeriodicalEmbedding
-from flwcnx.forecast.train import PointForecaster, train_model
+from flwcnx.forecast.train import train_model
 from flwcnx.ingest.base import Source
 from flwcnx.ingest.replay import ReplaySource
 from flwcnx.state.features import (

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -85,7 +85,7 @@ def fetch_tles(dest: str | Path, url: str = CELESTRAK_STARLINK_URL, timeout: int
 def gmst_radians(when: datetime) -> float:
     """Greenwich mean sidereal time. IAU 1982 series, adequate at this scale."""
     if when.tzinfo is None:
-        when = when.replace(tzinfo=timezone.utc)
+        when = when.replace(tzinfo=UTC)
     jd = _julian_date(when)
     t = (jd - 2451545.0) / 36525.0
     seconds = (67310.54841
@@ -165,7 +165,7 @@ def propagate(tle: tuple[str, str, str], when: datetime) -> np.ndarray:
         ) from exc
 
     if when.tzinfo is None:
-        when = when.replace(tzinfo=timezone.utc)
+        when = when.replace(tzinfo=UTC)
     satellite = Satrec.twoline2rv(tle[1], tle[2])
     jd, fr = jday(when.year, when.month, when.day, when.hour, when.minute,
                   when.second + when.microsecond / 1e6)

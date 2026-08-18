@@ -1,6 +1,6 @@
 """Safe bound to allocation decisions and congestion alerts. No ML here."""
 
-from flwcnx.decide.admission import AdmissionResult, evaluate_admission, admit_sessions
+from flwcnx.decide.admission import AdmissionResult, admit_sessions, evaluate_admission
 from flwcnx.decide.congestion import CongestionResult, detect_congestion
 
 __all__ = [

@@ -230,7 +230,7 @@ class ExperimentConfig:
 def _as_jsonable(obj: Any) -> Any:
     if isinstance(obj, dict):
         return {k: _as_jsonable(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, list | tuple):
         return [_as_jsonable(v) for v in obj]
     if isinstance(obj, Path):
         return str(obj)
