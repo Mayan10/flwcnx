@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 from flwcnx.config import (
+    LATENCY_COL,
     NORMALIZED_COLUMNS,
     TARGET_COL,
     TIME_COL,
@@ -38,25 +39,32 @@ from flwcnx.ingest.base import (
 COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
     TIME_COL: ("timestamp", "time", "datetime", "ts", "unixtime", "epoch"),
     TARGET_COL: (
-        "throughputmbps", "throughput", "downlinkthroughput", "downlinkbps",
+        "throughput", "throughputmbps", "downlinkthroughput", "downlinkbps",
         "downlinkthroughputmbps", "dlthroughput", "tputmbps", "tput", "bandwidth",
         "downlink",
     ),
-    "sat_id": ("satid", "satelliteid", "servingsatellite", "servingsat", "noradid",
-               "sat", "satellite"),
-    "elevation_deg": ("elevationdeg", "elevation", "elev", "el"),
-    "azimuth_deg": ("azimuthdeg", "azimuth", "azim", "az"),
-    "distance_km": ("distancekm", "distance", "range", "rangekm", "slantrange", "dist"),
-    "candidate_count": ("candidatecount", "numcandidates", "candidates", "ncandidates",
+    LATENCY_COL: ("latency", "latencyms", "rtt", "rttms", "delay"),
+    # `sat_name` is what the StarNet pickle calls it.
+    "sat_id": ("satname", "satid", "satelliteid", "servingsatellite", "servingsat",
+               "noradid", "sat", "satellite"),
+    # `alt` is the StarNet name for the altitude angle. It is checked before
+    # "altitude" so that a live-path column meaning height above ground can
+    # never be mapped here by accident.
+    "elevation_deg": ("alt", "elevationdeg", "elevation", "elev", "el"),
+    "azimuth_deg": ("az", "azimuthdeg", "azimuth", "azim"),
+    "distance_km": ("distance", "distancekm", "range", "rangekm", "slantrange", "dist"),
+    "candidate_count": ("ncandidates", "candidatecount", "numcandidates", "candidates",
                         "visiblesatellites", "candidatesatellites", "numsats"),
     "second_of_day": ("secondofday", "timeofday", "tod"),
-    "day_of_week": ("dayofweek", "weekday", "dow"),
-    "precipitation_mm": ("precipitationmm", "precipitation", "precip", "rain",
-                         "rainfall", "precipitationrate"),
-    "cloud_cover_pct": ("cloudcoverpct", "cloudcover", "cloudiness", "clouds",
+    "day_of_week": ("tdofw", "dayofweek", "weekday", "dow"),
+    "cloud_cover_pct": ("clouds", "cloudcoverpct", "cloudcover", "cloudiness",
                         "cloudcoverage", "totalcloudcover"),
-    "pressure_hpa": ("pressurehpa", "pressure", "surfacepressure", "airpressure",
+    "pressure_hpa": ("pressure", "pressurehpa", "surfacepressure", "airpressure",
                      "msl", "pressuremsl"),
+    "humidity_pct": ("humidity", "humiditypct", "relativehumidity", "rh"),
+    # Not a StarNet column. Open-Meteo supplies it on the live path.
+    "precipitation_mm": ("precipitation", "precipitationmm", "precip", "rain",
+                         "rainfall", "precipitationrate"),
 }
 
 # From the StarNet paper, reproduced in CLAUDE.md section 5. The loader checks
@@ -104,9 +112,30 @@ def map_columns(columns: list[str]) -> dict[str, str]:
     return resolved
 
 
+def read_any(path: str | Path) -> pd.DataFrame:
+    """Read a trace file, whatever container it arrived in.
+
+    The cleaned StarNet release is `dataset_tp_sat.pkl`, a pickled DataFrame,
+    not CSV. Pickle is an arbitrary-code format, so this is only ever pointed
+    at files the user downloaded themselves from the links in docs/data.md.
+    """
+    path = Path(path)
+    suffix = "".join(path.suffixes).lower()
+    if suffix.endswith(".pkl") or suffix.endswith(".pickle"):
+        frame = pd.read_pickle(path)
+        if not isinstance(frame, pd.DataFrame):
+            raise TypeError(f"{path} unpickled to {type(frame).__name__}, expected DataFrame")
+        return frame
+    if suffix.endswith(".parquet"):
+        return pd.read_parquet(path)
+    return pd.read_csv(path)
+
+
 def inspect_schema(path: str | Path, nrows: int = 2000) -> dict[str, object]:
     """Report how a CSV would be mapped, without building anything on it."""
-    head = pd.read_csv(path, nrows=nrows)
+    head = read_any(path)
+    if len(head) > nrows:
+        head = head.head(nrows)
     resolved = map_columns(list(head.columns))
     return {
         "path": str(path),
@@ -205,16 +234,20 @@ class ReplaySource(Source):
                 f"no traces at {self._path}. Fetch them with "
                 "`python scripts/download_data.py --dataset starnet`."
             )
-        files = sorted(p for p in self._path.rglob("*.csv") if p.is_file())
-        files += sorted(p for p in self._path.rglob("*.csv.gz") if p.is_file())
+        files: list[Path] = []
+        for pattern in ("*.pkl", "*.pickle", "*.parquet", "*.csv", "*.csv.gz"):
+            files += sorted(p for p in self._path.rglob(pattern) if p.is_file())
         if not files:
-            raise FileNotFoundError(f"no CSV files under {self._path}")
+            raise FileNotFoundError(
+                f"no trace files under {self._path}. The StarNet release is "
+                "dataset_tp_sat.pkl per location; see docs/data.md for the links."
+            )
         return files
 
     def load_frame(self) -> pd.DataFrame:
         if self._frame is not None:
             return self._frame
-        parts = [pd.read_csv(f) for f in self._files()]
+        parts = [read_any(f) for f in self._files()]
         raw = pd.concat(parts, ignore_index=True) if len(parts) > 1 else parts[0]
         frame = normalize_frame(raw, max_gap_seconds=self.config.max_gap_seconds)
 

@@ -92,9 +92,13 @@ def generate_frame(spec: SyntheticSpec | None = None) -> pd.DataFrame:
         "candidate_count": candidate,
         "second_of_day": (times.hour * 3600 + times.minute * 60 + times.second),
         "day_of_week": times.dayofweek,
-        "precipitation_mm": np.clip(rng.normal(0.05, 0.2, n), 0.0, None),
         "cloud_cover_pct": np.clip(rng.normal(45.0, 25.0, n), 0.0, 100.0),
         "pressure_hpa": 1013.0 + rng.normal(0, 4.0, n),
+        "humidity_pct": np.clip(rng.normal(60.0, 15.0, n), 0.0, 100.0),
+        "precipitation_mm": np.clip(rng.normal(0.05, 0.2, n), 0.0, None),
+        # The traces carry latency. Given a period opening penalty so the
+        # Casparsen period classifier has something to find.
+        "latency_ms": 35.0 + 30.0 * (phase < 1) + rng.gamma(2.0, 3.0, n),
     })
 
     if spec.gap_every > 0:

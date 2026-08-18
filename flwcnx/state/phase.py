@@ -300,8 +300,9 @@ def classify_periods(
     """
     if latency_column not in frame.columns:
         raise KeyError(
-            f"{latency_column!r} not in frame. The StarNet traces are throughput "
-            "only, so period classification needs a latency carrying source."
+            f"{latency_column!r} not in frame. The StarNet traces do carry "
+            "latency (see docs/data.md), so this usually means the column was "
+            "dropped upstream rather than that the source lacks it."
         )
     work = frame[[TIME_COL, latency_column]].copy()
     work["period"] = assign_period(work[TIME_COL], reference)

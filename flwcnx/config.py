@@ -26,22 +26,36 @@ import numpy as np
 TIME_COL = "timestamp"
 TARGET_COL = "throughput_mbps"
 
+LATENCY_COL = "latency_ms"
+
 SAT_COLS = ("sat_id", "elevation_deg", "azimuth_deg", "distance_km", "candidate_count")
 TIME_FEATURE_COLS = ("second_of_day", "day_of_week")
-WEATHER_COLS = ("precipitation_mm", "cloud_cover_pct", "pressure_hpa")
+# `humidity_pct` is the StarNet weather variable. `precipitation_mm` is kept
+# because Open-Meteo supplies it on the live path, but it is not a StarNet
+# feature and must not be treated as one. See docs/data.md.
+WEATHER_COLS = ("cloud_cover_pct", "pressure_hpa", "humidity_pct", "precipitation_mm")
 
 NORMALIZED_COLUMNS: tuple[str, ...] = (
     TIME_COL,
     TARGET_COL,
+    LATENCY_COL,
     *SAT_COLS,
     *TIME_FEATURE_COLS,
     *WEATHER_COLS,
 )
 
-# The 11 model inputs from StarNet section 5. Note that `timestamp` is not one
-# of them: BG-CFQS explicitly excludes the raw timestamp and latency from model
-# inputs, and StarNet feeds time of day rather than absolute time so that the
-# model cannot memorise the trace order.
+# The model inputs, pinned against their loader rather than against the paper
+# text. `get_data_loader` in model/NN_TP_ours/sat_dataset.py excludes
+# ['timestamp', 'latency', 'throughput'] from the attribute channels, leaving
+# twelve, and carries throughput as its own channel. Thirteen in total.
+#
+# That twelve is exactly the auxiliary variable list BG-CFQS report, which is
+# the strongest available evidence that both papers read the same columns.
+# CLAUDE.md section 6 says eleven; the discrepancy is recorded in docs/data.md
+# rather than resolved by picking whichever number is convenient.
+#
+# The raw timestamp is excluded deliberately, by both papers: a model given
+# absolute time can memorise the trace order instead of learning the link.
 FEATURE_COLUMNS: tuple[str, ...] = (
     TARGET_COL,
     "sat_id_encoded",
@@ -49,11 +63,13 @@ FEATURE_COLUMNS: tuple[str, ...] = (
     "azimuth_deg",
     "distance_km",
     "candidate_count",
-    "second_of_day",
+    "phase_seconds",
+    "minute",
+    "hour",
     "day_of_week",
-    "precipitation_mm",
     "cloud_cover_pct",
     "pressure_hpa",
+    "humidity_pct",
 )
 
 # StarNet's periodical embedding runs a separate 1D conv over each of four
@@ -63,8 +79,8 @@ FEATURE_CLASSES: dict[str, tuple[str, ...]] = {
     "throughput": (TARGET_COL,),
     "satellite": ("sat_id_encoded", "elevation_deg", "azimuth_deg", "distance_km",
                   "candidate_count"),
-    "time": ("second_of_day", "day_of_week"),
-    "weather": ("precipitation_mm", "cloud_cover_pct", "pressure_hpa"),
+    "time": ("phase_seconds", "minute", "hour", "day_of_week"),
+    "weather": ("cloud_cover_pct", "pressure_hpa", "humidity_pct"),
 }
 
 # Starlink reschedules on a 15 second cadence. This shows up everywhere from
@@ -113,7 +129,7 @@ class StarNetConfig:
 
     hidden_size: int = 128
     num_layers: int = 2
-    n_features: int = 11
+    n_features: int = 13
     embed_dim: int = 48          # each feature class is convolved to L x 48
     head_hidden: int = 128
     dropout: float = 0.0

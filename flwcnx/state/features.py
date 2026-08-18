@@ -149,6 +149,12 @@ def build_features(
 
     work["phase_seconds"] = assign_phase(work[TIME_COL], reference)
 
+    # StarNet feed minute and hour as separate channels (t_minute, t_hour in
+    # their loader) rather than a single second-of-day. Derived here so the
+    # normalized frame does not have to carry redundant columns.
+    work["minute"] = work[TIME_COL].dt.minute
+    work["hour"] = work[TIME_COL].dt.hour
+
     if encoder is None:
         encoder = SatelliteEncoder().fit(work["sat_id"])
     work["sat_id_encoded"] = encoder.transform(work["sat_id"])
