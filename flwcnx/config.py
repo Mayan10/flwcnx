@@ -1,0 +1,252 @@
+"""Configuration objects. Dataclasses only, no module level mutable state.
+
+Every experiment writes one of these next to its results so any figure can be
+traced back to the settings that produced it (CLAUDE.md section 11).
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import json
+import os
+import random
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+# ---------------------------------------------------------------------------
+# The normalized frame
+# ---------------------------------------------------------------------------
+
+# Every Source produces exactly these columns, in this order, whatever the
+# upstream format was. Downstream layers are allowed to assume this and nothing
+# else. Throughput is downlink in Mbps at 1 Hz.
+TIME_COL = "timestamp"
+TARGET_COL = "throughput_mbps"
+
+SAT_COLS = ("sat_id", "elevation_deg", "azimuth_deg", "distance_km", "candidate_count")
+TIME_FEATURE_COLS = ("second_of_day", "day_of_week")
+WEATHER_COLS = ("precipitation_mm", "cloud_cover_pct", "pressure_hpa")
+
+NORMALIZED_COLUMNS: tuple[str, ...] = (
+    TIME_COL,
+    TARGET_COL,
+    *SAT_COLS,
+    *TIME_FEATURE_COLS,
+    *WEATHER_COLS,
+)
+
+# The 11 model inputs from StarNet section 5. Note that `timestamp` is not one
+# of them: BG-CFQS explicitly excludes the raw timestamp and latency from model
+# inputs, and StarNet feeds time of day rather than absolute time so that the
+# model cannot memorise the trace order.
+FEATURE_COLUMNS: tuple[str, ...] = (
+    TARGET_COL,
+    "sat_id_encoded",
+    "elevation_deg",
+    "azimuth_deg",
+    "distance_km",
+    "candidate_count",
+    "second_of_day",
+    "day_of_week",
+    "precipitation_mm",
+    "cloud_cover_pct",
+    "pressure_hpa",
+)
+
+# StarNet's periodical embedding runs a separate 1D conv over each of four
+# feature classes (paper section 5.2), so the grouping is part of the model
+# definition rather than a presentation detail.
+FEATURE_CLASSES: dict[str, tuple[str, ...]] = {
+    "throughput": (TARGET_COL,),
+    "satellite": ("sat_id_encoded", "elevation_deg", "azimuth_deg", "distance_km",
+                  "candidate_count"),
+    "time": ("second_of_day", "day_of_week"),
+    "weather": ("precipitation_mm", "cloud_cover_pct", "pressure_hpa"),
+}
+
+# Starlink reschedules on a 15 second cadence. This shows up everywhere from
+# the periodical embedding to the regime definition, so it lives here once.
+PERIOD_SECONDS: int = 15
+
+LOCATIONS: tuple[str, ...] = ("usa", "canada", "germany")
+
+# BG-CFQS renames the three StarNet locations. Kept so the baseline comparison
+# tables line up without anyone having to remember the mapping.
+BGCFQS_ALIASES: dict[str, str] = {"usa": "CHI", "germany": "OSN", "canada": "VIC"}
+
+
+@dataclass(frozen=True)
+class DataConfig:
+    """Where the traces are and how much of them to use."""
+
+    root: Path = Path("data/starnet")
+    location: str = "usa"
+    resample_hz: float = 1.0
+    # BG-CFQS section 5.1 restricts each location to a contiguous date range.
+    # Left as None for StarNet reproduction, set for the BG-CFQS comparison.
+    date_start: str | None = None
+    date_end: str | None = None
+    max_gap_seconds: int = 2  # a larger jump splits the trace into two segments
+
+    def __post_init__(self) -> None:
+        if self.location not in LOCATIONS:
+            raise ValueError(f"location must be one of {LOCATIONS}, got {self.location!r}")
+
+
+@dataclass(frozen=True)
+class FeatureConfig:
+    """Look-back and horizon, plus which optional feature work is switched on."""
+
+    lookback: int = 30   # StarNet default, seconds
+    horizon: int = 5     # StarNet reports both 5 and 15; the headline table is 5
+    stride: int = 1
+    recover_phase: bool = True     # else fall back to the fixed 12/27/42/57 offset
+    standardize: bool = True
+
+
+@dataclass(frozen=True)
+class StarNetConfig:
+    """StarNet backbone hyperparameters, exactly as published (section 6)."""
+
+    hidden_size: int = 128
+    num_layers: int = 2
+    n_features: int = 11
+    embed_dim: int = 48          # each feature class is convolved to L x 48
+    head_hidden: int = 128
+    dropout: float = 0.0
+    lr: float = 1e-3
+    lr_decay: float = 0.99       # per step, not per epoch
+    batch_size: int = 512
+    epochs: int = 50
+    weight_decay: float = 1e-2   # AdamW default
+    grad_clip: float = 1.0
+
+
+@dataclass(frozen=True)
+class BGCFQSConfig:
+    """BG-CFQS configuration from Xie et al. section 5.1 and Algorithm 1."""
+
+    lookback: int = 75
+    horizon: int = 15
+    epsilon: float = 0.35                       # risk budget
+    tau_lo: float = 0.15                        # candidate quantile set T
+    tau_hi: float = 0.40
+    coarse_delta: float = 0.05                  # coarse tolerance
+    fine_grid: int = 5                          # M
+    n_estimators: int = 300
+    max_depth: int = 6
+    learning_rate: float = 0.05
+
+
+@dataclass(frozen=True)
+class RegimeConfig:
+    """Our regime definition. See CLAUDE.md section 7.
+
+    `axes` is ordered coarsest-last: the fallback hierarchy drops axes from the
+    end of the tuple, so put the axis you least want to lose first.
+    """
+
+    axes: tuple[str, ...] = ("phase", "elevation", "distance", "candidates")
+    min_samples: int = 200        # below this a regime falls back up the hierarchy
+    phase_open_seconds: float = 2.0   # StarNet section 4: attention concentrates here
+    phase_close_seconds: float = 2.0
+    elevation_edges: tuple[float, ...] = (45.0, 60.0)   # FCC floor is 25 degrees
+    distance_edges: tuple[float, ...] = (645.0,)        # StarNet knee
+    candidate_quantiles: tuple[float, ...] = (1 / 3, 2 / 3)
+
+
+@dataclass(frozen=True)
+class CalibrationConfig:
+    """How the point forecast becomes a lower bound."""
+
+    method: str = "regime_conformal"   # regime_conformal | regime_bgcfqs | conformal | bgcfqs
+    epsilon: float = 0.35
+    regime: RegimeConfig = field(default_factory=RegimeConfig)
+
+
+@dataclass(frozen=True)
+class SplitConfig:
+    """Temporal splits only. Random splits flatter these models (Horizon)."""
+
+    scheme: str = "temporal"          # temporal | contiguous_82 | leave_one_location_out
+    train_frac: float = 0.6
+    calib_frac: float = 0.2           # never used for fitting, only for the operating point
+    test_frac: float = 0.2
+
+
+@dataclass(frozen=True)
+class DecisionConfig:
+    """Admission control and congestion detection."""
+
+    bandwidth_per_session_mbps: float = 10.0
+    congestion_window: int = 5        # W consecutive slots below commitment
+    commitment_mbps: float = 50.0
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    """One full run. Serialised next to its results."""
+
+    name: str = "default"
+    seed: int = 1337
+    device: str = "auto"              # auto | cpu | cuda | mps
+    data: DataConfig = field(default_factory=DataConfig)
+    features: FeatureConfig = field(default_factory=FeatureConfig)
+    model: StarNetConfig = field(default_factory=StarNetConfig)
+    bgcfqs: BGCFQSConfig = field(default_factory=BGCFQSConfig)
+    calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
+    split: SplitConfig = field(default_factory=SplitConfig)
+    decision: DecisionConfig = field(default_factory=DecisionConfig)
+
+    def to_dict(self) -> dict[str, Any]:
+        return _as_jsonable(dataclasses.asdict(self))
+
+    def save(self, path: str | Path) -> Path:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(self.to_dict(), indent=2, sort_keys=True))
+        return path
+
+
+def _as_jsonable(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _as_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_as_jsonable(v) for v in obj]
+    if isinstance(obj, Path):
+        return str(obj)
+    return obj
+
+
+def seed_everything(seed: int) -> int:
+    """Seed every RNG we touch and return the seed so callers can record it."""
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    try:
+        import torch
+
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except ImportError:
+        pass
+    return seed
+
+
+def resolve_device(preference: str = "auto") -> str:
+    """Pick a torch device. StarNet trains on CUDA; MPS is the fallback here."""
+    if preference != "auto":
+        return preference
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
+    if torch.cuda.is_available():
+        return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
