@@ -216,3 +216,88 @@ class WetLinksSecondsSource(Source):
             "throughput_p95_mbps": round(float(frame[TARGET_COL].quantile(0.95)), 2),
             "weather_joined": bool(frame.get("temp", pd.Series(dtype=float)).notna().any()),
         }
+
+
+# ---------------------------------------------------------------------------
+# Reconstructed satellite geometry
+# ---------------------------------------------------------------------------
+
+
+def load_cached_elements(cache_dir: Path = Path("data/tle_cache")) -> pd.DataFrame:
+    """Read every cached Space-Track day into one frame."""
+    import gzip
+    import json
+
+    rows = []
+    for path in sorted(Path(cache_dir).glob("gp_*.json.gz")):
+        with gzip.open(path, "rt") as handle:
+            rows.extend(json.load(handle))
+    if not rows:
+        raise FileNotFoundError(
+            f"no cached elements under {cache_dir}. Run "
+            "scripts/fetch_elements.py after putting credentials in .env."
+        )
+    frame = pd.DataFrame(rows)
+    frame["EPOCH"] = pd.to_datetime(frame["EPOCH"], errors="coerce", utc=True)
+    return frame.dropna(subset=["EPOCH"])
+
+
+def attach_geometry(
+    frame: pd.DataFrame,
+    elements: pd.DataFrame,
+    *,
+    latitude: float,
+    longitude: float,
+    altitude_m: float = 0.0,
+    refresh_hours: float = 12.0,
+) -> pd.DataFrame:
+    """Add reconstructed candidate count and best-in-view geometry.
+
+    **This is a reconstruction, not a measurement.** WetLinks does not record
+    which satellite served the terminal. What is computed here is the number of
+    satellites above the service elevation floor, and the elevation and
+    distance of the highest one, from orbital elements propagated to the
+    measurement time. `geometry_source` is set to "reconstructed" on every row
+    so the distinction survives into any table built from this frame.
+
+    Computed once per burst rather than once per sample. An iperf run lasts 15
+    seconds, over which a satellite at 550 km moves about half a degree in
+    elevation, which is far below the width of the regime buckets these values
+    feed. Doing it per sample would cost 15 times as much for no resolution
+    that the downstream use can see.
+    """
+    from flwcnx.ingest.spacetrack import elements_to_tles, latest_per_satellite
+    from flwcnx.ingest.tle import Observer, visible_counts
+
+    if frame.empty:
+        return frame
+    observer = Observer(latitude, longitude, altitude_m)
+    work = frame.copy()
+
+    anchors = work.groupby("segment")[TIME_COL].min().sort_values()
+    # Element sets are re-selected every `refresh_hours`, so SGP4 never
+    # propagates further than that from an epoch.
+    window = (anchors.astype("int64") // int(refresh_hours * 3600 * 1e9))
+
+    pieces = []
+    for _, group in anchors.groupby(window):
+        midpoint = group.iloc[len(group) // 2].to_pydatetime()
+        current = latest_per_satellite(elements, midpoint)
+        if current.empty:
+            continue
+        tles = elements_to_tles(current)
+        counts = visible_counts(group.to_numpy(dtype="datetime64[ns]"), observer, tles)
+        counts["segment"] = group.index.to_numpy()
+        pieces.append(counts)
+
+    if not pieces:
+        raise ValueError("no element sets covered the measurement window")
+    geometry = pd.concat(pieces, ignore_index=True).drop(columns=[TIME_COL])
+
+    work = work.merge(geometry, on="segment", how="left", suffixes=("", "_geo"))
+    # Canonical names so the existing regime axes work unchanged. The alias and
+    # the marker column are what keep the provenance visible.
+    work["elevation_deg"] = work["best_elevation_deg"]
+    work["distance_km"] = work["best_distance_km"]
+    work["geometry_source"] = "reconstructed"
+    return work

@@ -25,6 +25,10 @@ from flwcnx.config import (
     TIME_COL,
     WETLINKS_FEATURE_CLASSES,
     WETLINKS_FEATURE_COLUMNS,
+    WETLINKS_SECONDS_BASE_CLASSES,
+    WETLINKS_SECONDS_BASE_COLUMNS,
+    WETLINKS_SECONDS_FEATURE_CLASSES,
+    WETLINKS_SECONDS_FEATURE_COLUMNS,
     FeatureConfig,
 )
 from flwcnx.state.phase import FIXED_PHASE_OFFSET, PhaseReference, assign_phase, recover_phase
@@ -126,9 +130,15 @@ class SequenceSet:
         empty groups named after satellite columns it does not have.
         """
         lookup = {name: i for i, name in enumerate(self.feature_names)}
-        classes = (WETLINKS_FEATURE_CLASSES
-                   if set(self.feature_names) == set(WETLINKS_FEATURE_COLUMNS)
-                   else FEATURE_CLASSES)
+        names = set(self.feature_names)
+        if names == set(WETLINKS_SECONDS_FEATURE_COLUMNS):
+            classes = WETLINKS_SECONDS_FEATURE_CLASSES
+        elif names == set(WETLINKS_SECONDS_BASE_COLUMNS):
+            classes = WETLINKS_SECONDS_BASE_CLASSES
+        elif names == set(WETLINKS_FEATURE_COLUMNS):
+            classes = WETLINKS_FEATURE_CLASSES
+        else:
+            classes = FEATURE_CLASSES
         groups = {
             klass: [lookup[c] for c in cols if c in lookup]
             for klass, cols in classes.items()
@@ -208,6 +218,14 @@ def build_features(
                 work.groupby("segment")[column]
                 .transform(lambda s: s.interpolate(limit_direction="both"))
             )
+    empty = [c for c in feature_columns if work[c].isna().all()]
+    if empty:
+        raise ValueError(
+            f"feature columns {empty} are entirely missing. Zero-filling them "
+            "would train the model on a fabricated input that looks like data. "
+            "Either attach the source they come from, or select a feature set "
+            "that does not include them."
+        )
     work[list(feature_columns)] = work[list(feature_columns)].fillna(0.0)
     return work, reference, encoder
 

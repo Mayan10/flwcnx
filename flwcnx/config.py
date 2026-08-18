@@ -112,6 +112,55 @@ WETLINKS_FEATURE_COLUMNS: tuple[str, ...] = (
     "day_of_week",
 )
 
+# The feature set for the per-second iperf release, which is a different frame
+# again: it has real capacity at 1 Hz and co-located weather, but none of the
+# dish status fields (obstruction, pointing, ping counters) that the 30 s
+# stream carries. `phase_seconds` is a genuine feature here, unlike in the
+# status stream where 30 s sampling aliases it to a constant.
+WETLINKS_SECONDS_FEATURE_COLUMNS: tuple[str, ...] = (
+    TARGET_COL,
+    "offered_uplink_mbps",
+    "candidate_count",
+    "best_elevation_deg",
+    "best_distance_km",
+    "phase_seconds",
+    "minute",
+    "hour",
+    "day_of_week",
+    "temp",
+    "humidity_pct",
+    "pressure_hpa",
+    "precipitation_mm",
+)
+
+# The same set without the reconstructed satellite columns, for runs where no
+# orbital elements have been fetched. Kept as an explicit alternative rather
+# than letting the geometry columns arrive as NaN: an all-null feature that is
+# then zero-filled is a fabricated input that costs nothing to train on and
+# quietly changes what the model saw.
+WETLINKS_SECONDS_BASE_COLUMNS: tuple[str, ...] = tuple(
+    c for c in (
+        TARGET_COL, "offered_uplink_mbps", "phase_seconds", "minute", "hour",
+        "day_of_week", "temp", "humidity_pct", "pressure_hpa", "precipitation_mm",
+    )
+)
+
+WETLINKS_SECONDS_BASE_CLASSES: dict[str, tuple[str, ...]] = {
+    "throughput": (TARGET_COL, "offered_uplink_mbps"),
+    "time": ("phase_seconds", "minute", "hour", "day_of_week"),
+    "weather": ("temp", "humidity_pct", "pressure_hpa", "precipitation_mm"),
+}
+
+WETLINKS_SECONDS_FEATURE_CLASSES: dict[str, tuple[str, ...]] = {
+    "throughput": (TARGET_COL, "offered_uplink_mbps"),
+    # Reconstructed from propagated elements, not measured. See
+    # ingest/spacetrack.py: best_* is the highest satellite in view, a proxy
+    # for the serving one.
+    "satellite": ("candidate_count", "best_elevation_deg", "best_distance_km"),
+    "time": ("phase_seconds", "minute", "hour", "day_of_week"),
+    "weather": ("temp", "humidity_pct", "pressure_hpa", "precipitation_mm"),
+}
+
 WETLINKS_FEATURE_CLASSES: dict[str, tuple[str, ...]] = {
     "throughput": (TARGET_COL,),
     "satellite": ("fraction_obstructed", "obstruction_duration", "obstruction_interval",
@@ -248,7 +297,7 @@ class DecisionConfig:
 #: ablation grid and the risk direction together, because on these two datasets
 #: those three choices are not independent: WetLinks has no satellite geometry,
 #: aliases the scheduling phase, and its usable target is latency.
-DATASETS = ("starnet", "wetlinks")
+DATASETS = ("starnet", "wetlinks", "wetlinks_seconds")
 
 
 @dataclass(frozen=True)
@@ -257,6 +306,10 @@ class ExperimentConfig:
 
     name: str = "default"
     dataset: str = "starnet"
+    # Whether reconstructed satellite geometry is available. Recorded in the
+    # config snapshot because it changes the input width, so two runs that
+    # differ only in this are not comparable without saying so.
+    geometry: bool = True
     seed: int = 1337
     device: str = "auto"              # auto | cpu | cuda | mps
     data: DataConfig = field(default_factory=DataConfig)
@@ -273,11 +326,22 @@ class ExperimentConfig:
 
     @property
     def feature_columns(self) -> tuple[str, ...]:
-        return WETLINKS_FEATURE_COLUMNS if self.dataset == "wetlinks" else FEATURE_COLUMNS
+        if self.dataset == "wetlinks":
+            return WETLINKS_FEATURE_COLUMNS
+        if self.dataset == "wetlinks_seconds":
+            return (WETLINKS_SECONDS_FEATURE_COLUMNS if self.geometry
+                    else WETLINKS_SECONDS_BASE_COLUMNS)
+        return FEATURE_COLUMNS
 
     @property
     def direction(self) -> str:
-        """Latency is bounded from above; capacity from below."""
+        """Capacity is bounded from below; latency from above.
+
+        `wetlinks` is the 30 s status stream, whose only usable target is
+        latency. `wetlinks_seconds` is the per-second iperf release, which is
+        real capacity, so it goes back to the lower bound the whole
+        allocation story is built on.
+        """
         return "upper" if self.dataset == "wetlinks" else "lower"
 
     def to_dict(self) -> dict[str, Any]:
