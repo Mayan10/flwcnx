@@ -137,11 +137,30 @@ class SpaceTrackClient:
         except Exception as exc:
             raise SpaceTrackError(f"Space-Track query failed for {cache_key}: {exc}") from exc
 
+        payload = self._thin(payload)
         cached.parent.mkdir(parents=True, exist_ok=True)
         with gzip.open(cached, "wt") as handle:
             json.dump(payload, handle)
         time.sleep(self.pause_seconds)
         return payload
+
+    @staticmethod
+    def _thin(rows: list[dict]) -> list[dict]:
+        """Keep the latest element set per satellite within the fetched window.
+
+        Space-Track returns every update, several per satellite per day. For
+        propagation we only ever use the newest set at or before a given time,
+        so the intermediate ones are dead weight in both cache and memory.
+        """
+        if not rows or "NORAD_CAT_ID" not in rows[0]:
+            return rows
+        latest: dict[str, dict] = {}
+        for row in rows:
+            key = str(row.get("NORAD_CAT_ID"))
+            epoch = str(row.get("EPOCH", ""))
+            if key not in latest or epoch > str(latest[key].get("EPOCH", "")):
+                latest[key] = row
+        return list(latest.values())
 
     def gp_history(self, start: date, end: date, *, object_name: str = "STARLINK",
                    chunk_days: int = 1) -> pd.DataFrame:
@@ -156,9 +175,13 @@ class SpaceTrackClient:
         while cursor <= end:
             stop = min(cursor + timedelta(days=chunk_days - 1), end)
             key = f"gp_{object_name}_{cursor:%Y%m%d}_{stop:%Y%m%d}"
+            # Only the five predicates we actually use. The full record is
+            # ~60 fields and a single day of Starlink is ~14,800 element sets,
+            # so trimming is the difference between a few MB and a few hundred.
             path = (
                 f"class/gp_history/EPOCH/{cursor:%Y-%m-%d}--{stop + timedelta(days=1):%Y-%m-%d}"
                 f"/OBJECT_NAME/~~{object_name}/orderby/NORAD_CAT_ID/format/json"
+                "/predicates/NORAD_CAT_ID,OBJECT_NAME,EPOCH,TLE_LINE1,TLE_LINE2"
             )
             rows = self.query(path, key)
             if rows:
