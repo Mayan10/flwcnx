@@ -29,9 +29,8 @@ eval/       harness, splits, metrics, figures
 ```
 
 Two ingestion modes sit behind one interface. `ReplaySource` reads the
-published StarNet CSV traces and is the real path. `LiveSource` wires a
-terminal, a TLE feed and a weather feed, and is a stub until a dish is
-available.
+published StarNet traces and is the real path. `LiveSource` wires a terminal, a
+TLE feed and a weather feed, and is a stub until a dish is available.
 
 ## Contribution boundary
 
@@ -72,14 +71,26 @@ python -m pip install -e ".[orbital]"   # only needed for the live TLE path
 
 ## Data
 
-Nothing in `data/` is versioned. Fetch the primary traces with:
+Nothing in `data/` is versioned.
+
+The StarNet traces are **not in their repo**. They are pickled DataFrames
+behind three OneDrive links, one per country, with no direct download URL, so
+they have to be fetched by hand. This prints the links and the expected layout:
 
 ```bash
 python scripts/download_data.py --dataset starnet --dest data/starnet
 ```
 
-The loader verifies itself against the sample counts published in the StarNet
-paper. See `docs/data.md`.
+Once the files are in place, check the column mapping before trusting anything
+downstream:
+
+```bash
+python scripts/download_data.py --inspect data/starnet/usa
+```
+
+The loader then verifies itself against the sample, satellite and handover
+counts published in the paper. The full schema, and the several places it
+differs from what the brief assumed, are in `docs/data.md`.
 
 ## Running
 
@@ -92,5 +103,15 @@ python -m flwcnx.eval.runner --help         # the full experiment grid
 
 ## Status
 
-See `docs/progress.md`. No result in this repo is reported unless it was
-produced by a run whose config snapshot sits next to it in `results/`.
+Every layer is implemented, tested and lint clean. **No reproduction has been
+run**, because the traces cannot be downloaded programmatically. Phases 1 and 2
+are gates, and nothing downstream of them means anything until they pass.
+
+What has been demonstrated is that the code does what it claims on synthetic
+data built to contain the effect: the regime layer moves conditional OverRate
+on the low throughput slices while leaving the global rate and MAE alone. That
+is a working mechanism, not a result, and `docs/progress.md` says so in those
+words.
+
+No number in this repo is reported unless it was produced by a run whose config
+snapshot sits next to it in `results/`.
