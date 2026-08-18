@@ -170,7 +170,8 @@ class BGCFQS:
 
 
 def bgcfqs_on_residuals(predicted_cal: np.ndarray, actual_cal: np.ndarray,
-                        epsilon: float, config: BGCFQSConfig | None = None) -> float:
+                        epsilon: float, config: BGCFQSConfig | None = None,
+                        direction: str = "lower") -> float:
     """The BG-CFQS boundary search applied to residuals rather than to a model.
 
     Used two ways. As a per regime operating point selector inside our
@@ -192,9 +193,16 @@ def bgcfqs_on_residuals(predicted_cal: np.ndarray, actual_cal: np.ndarray,
     if residuals.size == 0:
         raise ValueError("no finite calibration residuals")
 
+    # On an upper bound the candidate set is mirrored: tau indexes how much
+    # risk is being spent, so the offset is the (1 - tau) residual quantile.
+    # Both directions stay monotone in tau, so one search serves both.
+    def offset_for(tau: float) -> float:
+        level = tau if direction == "lower" else 1.0 - tau
+        return float(np.quantile(residuals, level))
+
     def rate_for(tau: float) -> float:
-        offset = float(np.quantile(residuals, tau))
-        return float(np.mean((predicted_cal[finite] + offset) > actual_cal[finite]))
+        return over_rate(predicted_cal[finite] + offset_for(tau), actual_cal[finite],
+                         direction)
 
     n_coarse = int(round((config.tau_hi - config.tau_lo) / config.coarse_delta)) + 1
     grid = np.linspace(config.tau_lo, config.tau_hi, n_coarse)
@@ -211,9 +219,9 @@ def bgcfqs_on_residuals(predicted_cal: np.ndarray, actual_cal: np.ndarray,
     if best_tau is None:
         # Budget unreachable inside the candidate set. Fall back to the most
         # conservative candidate rather than pretending the search succeeded.
-        return float(np.quantile(residuals, config.tau_lo))
+        return offset_for(config.tau_lo)
 
     for tau in np.linspace(best_tau, upper, config.fine_grid + 2)[1:-1]:
         if rate_for(float(tau)) <= epsilon and tau > best_tau:
             best_tau = float(tau)
-    return float(np.quantile(residuals, best_tau))
+    return offset_for(best_tau)

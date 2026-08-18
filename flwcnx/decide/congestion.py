@@ -78,20 +78,30 @@ def sustained(flags: np.ndarray, window: int) -> np.ndarray:
 
 
 def detect_congestion(safe_bound: np.ndarray, actual: np.ndarray,
-                      commitment_mbps: float, window: int = 5) -> CongestionResult:
+                      commitment_mbps: float, window: int = 5,
+                      direction: str = "lower") -> CongestionResult:
     """Flag congestion from the bound and score it against what happened.
 
-    The predicted flag uses the bound only, so it is available before the
-    slot is served. The actual flag uses realised throughput and exists purely
-    to score the predictor.
+    The predicted flag uses the bound only, so it is available before the slot
+    is served. The actual flag uses the realised signal and exists purely to
+    score the predictor.
+
+    The rule transfers across targets with the comparison flipped. On capacity,
+    congestion is the bound falling *below* the committed rate. On latency, it
+    is the bound rising *above* the committed delay budget. `commitment_mbps`
+    is read as milliseconds on that path.
     """
     safe_bound = np.asarray(safe_bound, dtype=float).ravel()
     actual = np.asarray(actual, dtype=float).ravel()
     if safe_bound.shape != actual.shape:
         raise ValueError("bound and actual must be the same length")
 
-    predicted = sustained(safe_bound < commitment_mbps, window)
-    truth = sustained(actual < commitment_mbps, window)
+    if direction == "lower":
+        predicted = sustained(safe_bound < commitment_mbps, window)
+        truth = sustained(actual < commitment_mbps, window)
+    else:
+        predicted = sustained(safe_bound > commitment_mbps, window)
+        truth = sustained(actual > commitment_mbps, window)
     return CongestionResult(predicted, truth, _lead_times(predicted, truth))
 
 

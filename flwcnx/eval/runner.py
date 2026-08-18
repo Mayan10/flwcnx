@@ -174,6 +174,7 @@ def run_experiment(
                                             "regime_bgcfqs"),
     epsilons: tuple[float, ...] | None = None,
     granularities: tuple[str, ...] = ("full",),
+    direction: str = "lower",
     verbose: bool = True,
 ) -> RunResult:
     """One data source, one backbone, and a sweep over the calibration axis.
@@ -205,14 +206,16 @@ def run_experiment(
     actual_cal = calibration.y.mean(axis=1)
     actual_test = test.y.mean(axis=1)
 
-    point = summarise(conditional_metrics(predicted_test, actual_test)).to_dict(orient="records")
+    point = summarise(
+        conditional_metrics(predicted_test, actual_test, direction=direction)
+    ).to_dict(orient="records")
 
     result = RunResult(
         name=config.name,
         config=config.to_dict(),
         split_summary=prepared["split"].summary(),
         leak_check=prepared["leak"],
-        point_metrics={"backbone": backbone, "slices": point},
+        point_metrics={"backbone": backbone, "slices": point, "direction": direction},
         training=history.to_dict(),
         environment=_environment(),
     )
@@ -235,7 +238,7 @@ def run_experiment(
                 result.calibration[key] = _calibrate_and_score(
                     method, calibration_config, predicted_cal, actual_cal,
                     predicted_test, actual_test, calibration, test, train,
-                    config, result, key,
+                    config, result, key, direction,
                 )
                 if verbose:
                     entry = result.calibration[key]
@@ -248,10 +251,12 @@ def run_experiment(
 def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
                          predicted_cal, actual_cal, predicted_test, actual_test,
                          calibration_set, test_set, train_set,
-                         config: ExperimentConfig, result: RunResult, key: str) -> dict:
+                         config: ExperimentConfig, result: RunResult, key: str,
+                         direction: str = "lower") -> dict:
     """Fit one calibration method and score its bounds all the way downstream."""
     if method == "global_conformal":
-        bound = fit_conformal(predicted_cal, actual_cal, calibration_config.epsilon)
+        bound = fit_conformal(predicted_cal, actual_cal, calibration_config.epsilon,
+                              direction=direction)
         lower = bound.apply(predicted_test)
         detail = {"offset_mbps": round(bound.offset, 4), "rank": bound.rank,
                   "degenerate": bound.degenerate}
@@ -261,9 +266,9 @@ def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
         if calibration_config.regime.axes:
             assigner = RegimeAssigner(calibration_config.regime).fit(train_set.regime)
             calibrator = RegimeCalibrator(config=calibration_config, assigner=assigner,
-                                          selector=selector)
+                                          selector=selector, direction=direction)
         else:
-            calibrator = global_calibrator(calibration_config, selector)
+            calibrator = global_calibrator(calibration_config, selector, direction)
         calibrator.fit(predicted_cal, actual_cal, calibration_set.regime)
         lower = calibrator.transform(predicted_test, test_set.regime)
         detail = calibrator.summary()
@@ -276,9 +281,10 @@ def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
     else:
         raise ValueError(f"unknown calibration method {method!r}")
 
-    metrics = conditional_metrics(lower, actual_test)
+    metrics = conditional_metrics(lower, actual_test, direction=direction)
     entry: dict = {"method": method, "epsilon": calibration_config.epsilon,
-                   "axes": list(calibration_config.regime.axes), "detail": detail}
+                   "axes": list(calibration_config.regime.axes),
+                   "direction": direction, "detail": detail}
     for name, metric in metrics.items():
         entry[name] = metric.to_dict()
         entry[name]["risk_pass"] = metric.risk_pass(calibration_config.epsilon)
@@ -287,18 +293,25 @@ def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
     # calibration granularities are judged against the same partition.
     full_assigner = RegimeAssigner(RegimeConfig()).fit(train_set.regime)
     labels = full_assigner.assign(test_set.regime)
-    entry["worst_regime_over_rate"] = worst_regime_over_rate(lower, actual_test, labels)
+    entry["worst_regime_over_rate"] = worst_regime_over_rate(lower, actual_test, labels,
+                                                             direction=direction)
     result.regime_tables[f"regime_{key.replace('|', '_').replace('=', '')}"] = (
-        per_regime_metrics(lower, actual_test, labels, min_samples=30)
+        per_regime_metrics(lower, actual_test, labels, min_samples=30, direction=direction)
     )
 
-    admission = evaluate_admission(lower, actual_test,
-                                   config.decision.bandwidth_per_session_mbps)
-    result.admission[key] = admission.to_dict(orient="records")
+    # Admission control is defined on capacity. Running it on a latency bound
+    # would compute sessions-per-millisecond, which is not a quantity. The
+    # congestion rule does transfer: it is a sustained threshold crossing on
+    # the bound either way, with the comparison flipped.
+    if direction == "lower":
+        admission = evaluate_admission(lower, actual_test,
+                                       config.decision.bandwidth_per_session_mbps)
+        result.admission[key] = admission.to_dict(orient="records")
 
     congestion = detect_congestion(lower, actual_test,
                                    config.decision.commitment_mbps,
-                                   config.decision.congestion_window)
+                                   config.decision.congestion_window,
+                                   direction=direction)
     result.congestion[key] = {**congestion.scores(), **congestion.confusion()}
     return entry
 
@@ -307,7 +320,7 @@ def run_grid(source: Source, config: ExperimentConfig, output: str | Path,
              *, backbones: tuple[str, ...] = ("starnet",),
              epsilons: tuple[float, ...] = EPSILON_SWEEP,
              granularities: tuple[str, ...] = ("global", "phase", "phase+elevation", "full"),
-             verbose: bool = True) -> list[Path]:
+             direction: str = "lower", verbose: bool = True) -> list[Path]:
     """The full grid from CLAUDE.md section 8, one directory per backbone."""
     output = Path(output)
     written = []
@@ -317,7 +330,8 @@ def run_grid(source: Source, config: ExperimentConfig, output: str | Path,
             source, run_config, backbone=backbone,
             calibration_methods=("point", "global_conformal", "regime_conformal",
                                  "regime_bgcfqs"),
-            epsilons=epsilons, granularities=granularities, verbose=verbose,
+            epsilons=epsilons, granularities=granularities, direction=direction,
+            verbose=verbose,
         )
         written.append(result.save(output / run_config.name))
     return written

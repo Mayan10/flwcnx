@@ -48,6 +48,7 @@ import pandas as pd
 from flwcnx.calibrate.bgcfqs import bgcfqs_on_residuals
 from flwcnx.calibrate.conformal import fit_conformal
 from flwcnx.config import BGCFQSConfig, CalibrationConfig
+from flwcnx.eval.metrics import check_direction, over_rate
 from flwcnx.state.regime import GLOBAL_LABEL, FallbackReport, RegimeAssigner, build_fallback_map
 
 #: How a per regime operating point is chosen.
@@ -84,6 +85,10 @@ class RegimeCalibrator:
     config: CalibrationConfig = field(default_factory=CalibrationConfig)
     assigner: RegimeAssigner | None = None
     selector: str = "conformal"
+    # "lower" for throughput, where the risk is over-allocating; "upper" for
+    # latency, where the risk is promising a delay the link will not meet. The
+    # conditional failure this layer fixes is the same shape either way.
+    direction: str = "lower"
     bgcfqs_config: BGCFQSConfig = field(default_factory=BGCFQSConfig)
 
     _offsets: dict[tuple[int, str], RegimeOffset] = field(default_factory=dict, repr=False)
@@ -96,6 +101,7 @@ class RegimeCalibrator:
     def __post_init__(self) -> None:
         if self.selector not in SELECTORS:
             raise ValueError(f"selector must be one of {SELECTORS}, got {self.selector!r}")
+        check_direction(self.direction)
         if self.assigner is None:
             self.assigner = RegimeAssigner(self.config.regime)
 
@@ -167,13 +173,14 @@ class RegimeCalibrator:
                                 self.selector, degenerate=True)
 
         if self.selector == "conformal":
-            bound = fit_conformal(p, a, self.config.epsilon)
+            bound = fit_conformal(p, a, self.config.epsilon, direction=self.direction)
             offset, degenerate = bound.offset, bound.degenerate
         else:
-            offset = bgcfqs_on_residuals(p, a, self.config.epsilon, self.bgcfqs_config)
+            offset = bgcfqs_on_residuals(p, a, self.config.epsilon, self.bgcfqs_config,
+                                         direction=self.direction)
             degenerate = False
 
-        achieved = float(np.mean((p + offset) > a))
+        achieved = over_rate(p + offset, a, self.direction)
         return RegimeOffset(label, level_index, level_name, float(offset), int(p.size),
                             achieved, self.selector, degenerate)
 
@@ -220,7 +227,7 @@ class RegimeCalibrator:
 
     def transform(self, predicted: np.ndarray, covariates: pd.DataFrame,
                   floor: float = 0.0) -> np.ndarray:
-        """Point predictions to regime conditioned safe lower bounds."""
+        """Point predictions to regime conditioned safe bounds."""
         predicted = np.asarray(predicted, dtype=float).ravel()
         return np.maximum(predicted + self.offsets_for(covariates), floor)
 
@@ -246,6 +253,7 @@ class RegimeCalibrator:
         table = self.offsets_table()
         out: dict = {
             "selector": self.selector,
+            "direction": self.direction,
             "epsilon": self.config.epsilon,
             "axes": list(self.config.regime.axes),
             "min_samples": self.config.regime.min_samples,
@@ -267,7 +275,8 @@ class RegimeCalibrator:
         return out
 
 
-def global_calibrator(config: CalibrationConfig, selector: str = "conformal") -> RegimeCalibrator:
+def global_calibrator(config: CalibrationConfig, selector: str = "conformal",
+                      direction: str = "lower") -> RegimeCalibrator:
     """The ablation floor: one regime for everything.
 
     Same code path as the conditioned version, so a difference between them is
@@ -276,7 +285,7 @@ def global_calibrator(config: CalibrationConfig, selector: str = "conformal") ->
     from dataclasses import replace
 
     flat = replace(config, regime=replace(config.regime, axes=()))
-    calibrator = RegimeCalibrator(config=flat, selector=selector)
+    calibrator = RegimeCalibrator(config=flat, selector=selector, direction=direction)
     assert calibrator.assigner is not None
     calibrator.assigner._fitted = True     # no data dependent cut points to fit
     return calibrator

@@ -225,3 +225,114 @@ def test_bounds_never_go_below_the_floor():
     assigner = RegimeAssigner(RegimeConfig()).fit(covariates)
     calibrator = RegimeCalibrator(assigner=assigner).fit(predicted, actual, covariates)
     assert (calibrator.transform(np.full(len(covariates), -500.0), covariates) >= 0).all()
+
+
+# ---------------------------------------------------------------------------
+# upper bounds, which is what the latency target needs
+# ---------------------------------------------------------------------------
+
+
+def _latency_heteroscedastic(n=60000, seed=4):
+    """The latency analogue of the failure mode.
+
+    Heavy obstruction raises the delay and widens the residuals at the same
+    time, so a single global offset chosen to hit the budget on average sits
+    too low exactly where the link is already struggling.
+    """
+    rng = np.random.default_rng(seed)
+    obstruction = rng.uniform(0, 0.02, n)
+    hour = rng.integers(0, 24, n).astype(float)
+    actual = (28 + 900 * obstruction + 3 * np.sin(2 * np.pi * hour / 24)
+              + rng.gamma(2, 2, n))
+    predicted = actual + rng.normal(0, 2 + 260 * obstruction)
+    covariates = pd.DataFrame({
+        "phase_seconds": rng.uniform(0, 15, n),
+        "elevation_deg": obstruction * 4000,
+        "distance_km": hour * 30,
+        "candidate_count": rng.integers(10, 50, n).astype(float),
+    })
+    return predicted, actual, covariates
+
+
+@pytest.mark.parametrize("epsilon", [0.05, 0.15, 0.35])
+def test_upper_conformal_holds_its_budget_out_of_sample(epsilon):
+    rng = np.random.default_rng(0)
+    n = 40000
+    actual = 30 + rng.gamma(2, 4, n)
+    predicted = actual + rng.normal(0, 6, n)
+    half = n // 2
+
+    bound = fit_conformal(predicted[:half], actual[:half], epsilon, direction="upper")
+    achieved = over_rate(bound.apply(predicted[half:]), actual[half:], direction="upper")
+    assert achieved == pytest.approx(epsilon, abs=0.02)
+
+
+def test_upper_and_lower_offsets_sit_on_opposite_sides():
+    rng = np.random.default_rng(1)
+    actual = 30 + rng.gamma(2, 4, 20000)
+    predicted = actual + rng.normal(0, 6, 20000)
+    lower = fit_conformal(predicted, actual, 0.2, direction="lower")
+    upper = fit_conformal(predicted, actual, 0.2, direction="upper")
+    assert lower.offset < 0 < upper.offset
+    assert lower.rank == upper.rank
+
+
+def test_tighter_budget_raises_an_upper_bound():
+    """Opposite of the lower-bound case: safer means higher, not lower."""
+    rng = np.random.default_rng(2)
+    actual = 30 + rng.gamma(2, 4, 20000)
+    predicted = actual + rng.normal(0, 6, 20000)
+    tight = fit_conformal(predicted, actual, 0.05, direction="upper")
+    loose = fit_conformal(predicted, actual, 0.35, direction="upper")
+    assert tight.offset > loose.offset
+
+
+def test_bgcfqs_residual_search_works_upward():
+    rng = np.random.default_rng(3)
+    actual = 30 + rng.gamma(2, 4, 20000)
+    predicted = actual + rng.normal(0, 6, 20000)
+    offset = bgcfqs_on_residuals(predicted, actual, 0.35, direction="upper")
+    assert over_rate(predicted + offset, actual, direction="upper") <= 0.36
+
+
+def test_regime_layer_improves_conditional_risk_on_latency():
+    predicted, actual, covariates = _latency_heteroscedastic()
+    train, calibration, test = slice(0, 20000), slice(20000, 40000), slice(40000, None)
+    config = CalibrationConfig(epsilon=0.35, regime=RegimeConfig(min_samples=200))
+
+    global_lower = fit_conformal(predicted[calibration], actual[calibration], 0.35,
+                                 direction="upper").apply(predicted[test])
+    assigner = RegimeAssigner(config.regime).fit(covariates.iloc[train])
+    calibrator = RegimeCalibrator(config=config, assigner=assigner,
+                                  direction="upper").fit(
+        predicted[calibration], actual[calibration], covariates.iloc[calibration]
+    )
+    regime_bound = calibrator.transform(predicted[test], covariates.iloc[test])
+
+    plain = conditional_metrics(global_lower, actual[test], direction="upper")
+    ours = conditional_metrics(regime_bound, actual[test], direction="upper")
+
+    assert ours["global"].over_rate == pytest.approx(plain["global"].over_rate, abs=0.03)
+    assert ours["P30"].over_rate < plain["P30"].over_rate
+    assert ours["P10"].over_rate < plain["P10"].over_rate
+    assert ours["global"].mae < plain["global"].mae * 1.15
+    assert calibrator.summary()["direction"] == "upper"
+
+
+def test_latency_risk_slice_selects_the_high_tail():
+    """Slicing the low tail on a latency target would report the easy samples
+    as the hard case, which is exactly the kind of error that looks like a win."""
+    from flwcnx.eval.metrics import risk_slice_mask
+
+    actual = np.arange(1000, dtype=float)
+    high = risk_slice_mask(actual, 0.10, direction="upper")
+    assert actual[high].min() >= np.quantile(actual, 0.90) - 1e-9
+    low = risk_slice_mask(actual, 0.10, direction="lower")
+    assert actual[low].max() <= np.quantile(actual, 0.10) + 1e-9
+
+
+def test_bad_direction_is_rejected():
+    with pytest.raises(ValueError, match="direction must be one of"):
+        fit_conformal(np.zeros(100), np.ones(100), 0.35, direction="sideways")
+    with pytest.raises(ValueError, match="direction must be one of"):
+        RegimeCalibrator(direction="sideways")
