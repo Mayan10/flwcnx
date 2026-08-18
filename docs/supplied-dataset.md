@@ -3,6 +3,30 @@
 Inspected 2026-08-18, before any feature code was written against it, per the
 brief's instruction.
 
+> **Correction, same day.** Everything below is accurate about the two CSVs
+> that were supplied, and two of its conclusions are wrong about WetLinks as a
+> whole. The supplied files are a *subset*. The full public release at
+> https://github.com/sys-uos/WetLinks additionally contains
+> `iperf_cleaned_seconds_*.csv`, which is **per-second measured capacity from
+> iperf**, and `analysis_data_*.csv`, which carries co-located weather-station
+> readings.
+>
+> So, against the full release:
+>
+> - **Finding 1 does not hold.** At 1 Hz the 15 s scheduling phase is not
+>   aliased and the Casparsen recovery is usable.
+> - **Finding 3 does not hold.** The per-second file is iperf throughput under
+>   load, which is capacity, not offered load.
+> - **Finding 2 still holds.** There is no serving-satellite information in any
+>   WetLinks file. Satellite geometry has to be reconstructed from propagated
+>   elements (`ingest/spacetrack.py`) and is a reconstruction, not a
+>   measurement.
+>
+> See `docs/wetlinks-full.md`. This section is kept rather than rewritten,
+> because the distinction between the supplied subset and the full release is
+> exactly the thing that was almost missed, and a corrected page would hide
+> that it was ever in question.
+
 **It is WetLinks.** The two site names, `uos-rz` and `utwente`, are the
 University of Osnabrück computing centre and the University of Twente: exactly
 the two European vantage points in Laniewski et al., TMA 2024, which is already
