@@ -15,9 +15,11 @@ checkpoints/
 *.parquet
 *.feather
 
-# Secrets
+# Secrets. The .example template is the one exception: it carries the
+# variable names and no values, so it belongs in the repo.
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 credentials.json
