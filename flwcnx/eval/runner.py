@@ -34,7 +34,6 @@ import pandas as pd
 from flwcnx.calibrate.conformal import fit_conformal
 from flwcnx.calibrate.regime_cal import RegimeCalibrator, global_calibrator
 from flwcnx.config import (
-    FEATURE_COLUMNS,
     CalibrationConfig,
     ExperimentConfig,
     RegimeConfig,
@@ -62,7 +61,11 @@ from flwcnx.state.features import (
     make_sequences,
     standardize_sequences,
 )
-from flwcnx.state.regime import RegimeAssigner, regime_granularity_presets
+from flwcnx.state.regime import (
+    RegimeAssigner,
+    regime_granularity_presets,
+    wetlinks_granularity_presets,
+)
 
 BACKBONES = ("starnet", "starnet_no_pe", "starnet_no_attn", "dlinear", "patchtst", "timesnet")
 EPSILON_SWEEP = (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35)
@@ -134,8 +137,11 @@ def prepare(source: Source, config: ExperimentConfig):
     leaks the test distribution's scale into training.
     """
     frame = source.load_frame()
-    features, phase_reference, encoder = build_features(frame, config=config.features)
-    raw = make_sequences(features, config=config.features)
+    columns = config.feature_columns
+    features, phase_reference, encoder = build_features(
+        frame, config=config.features, feature_columns=columns
+    )
+    raw = make_sequences(features, config=config.features, feature_names=columns)
 
     if config.split.scheme == "contiguous_82":
         split = contiguous_82(raw, lookback=config.features.lookback,
@@ -149,10 +155,10 @@ def prepare(source: Source, config: ExperimentConfig):
 
     standardizer = Standardizer()
     if config.features.standardize:
-        standardizer.fit_windows(raw.x[split.train], FEATURE_COLUMNS)
+        standardizer.fit_windows(raw.x[split.train], columns)
         scaled = standardize_sequences(raw, standardizer)
     else:
-        standardizer.fit_windows(np.zeros((1, 1, raw.x.shape[-1])), FEATURE_COLUMNS)
+        standardizer.fit_windows(np.zeros((1, 1, raw.x.shape[-1])), columns)
         standardizer.mean = np.zeros(raw.x.shape[-1])
         standardizer.std = np.ones(raw.x.shape[-1])
         scaled = raw
@@ -174,7 +180,7 @@ def run_experiment(
                                             "regime_bgcfqs"),
     epsilons: tuple[float, ...] | None = None,
     granularities: tuple[str, ...] = ("full",),
-    direction: str = "lower",
+    direction: str | None = None,
     verbose: bool = True,
 ) -> RunResult:
     """One data source, one backbone, and a sweep over the calibration axis.
@@ -186,6 +192,9 @@ def run_experiment(
     seed_everything(config.seed)
     device = resolve_device(config.device)
     epsilons = epsilons or (config.calibration.epsilon,)
+    # The risk direction is a property of the target, not a free knob, so it is
+    # taken from the dataset unless a caller deliberately overrides it.
+    direction = direction or config.direction
 
     prepared = prepare(source, config)
     train, calibration, test = prepared["train"], prepared["calibration"], prepared["test"]
@@ -225,7 +234,8 @@ def run_experiment(
         "confidence": prepared["phase_reference"].confidence,
     }
 
-    presets = regime_granularity_presets()
+    presets = (wetlinks_granularity_presets() if config.dataset == "wetlinks"
+               else regime_granularity_presets())
     for epsilon in epsilons:
         for granularity in granularities:
             axes = presets[granularity]
@@ -291,7 +301,11 @@ def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
 
     # Per regime breakdown, always at the full granularity so that different
     # calibration granularities are judged against the same partition.
-    full_assigner = RegimeAssigner(RegimeConfig()).fit(train_set.regime)
+    reference_axes = (wetlinks_granularity_presets()["full"] if direction == "upper"
+                      else regime_granularity_presets()["full"])
+    full_assigner = RegimeAssigner(replace(RegimeConfig(), axes=reference_axes)).fit(
+        train_set.regime
+    )
     labels = full_assigner.assign(test_set.regime)
     entry["worst_regime_over_rate"] = worst_regime_over_rate(lower, actual_test, labels,
                                                              direction=direction)
@@ -320,7 +334,7 @@ def run_grid(source: Source, config: ExperimentConfig, output: str | Path,
              *, backbones: tuple[str, ...] = ("starnet",),
              epsilons: tuple[float, ...] = EPSILON_SWEEP,
              granularities: tuple[str, ...] = ("global", "phase", "phase+elevation", "full"),
-             direction: str = "lower", verbose: bool = True) -> list[Path]:
+             direction: str | None = None, verbose: bool = True) -> list[Path]:
     """The full grid from CLAUDE.md section 8, one directory per backbone."""
     output = Path(output)
     written = []

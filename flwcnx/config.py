@@ -87,6 +87,40 @@ FEATURE_CLASSES: dict[str, tuple[str, ...]] = {
 # the periodical embedding to the regime definition, so it lives here once.
 PERIOD_SECONDS: int = 15
 
+# The feature set for the supplied WetLinks data. Different from the StarNet
+# one because the datasets are different, not because we changed our minds:
+# WetLinks has no satellite geometry at all and its 30 s grid aliases the
+# scheduling phase to a constant (docs/supplied-dataset.md). What it does have
+# is obstruction, dish pointing, offered load and ping statistics.
+#
+# `offered_downlink_mbps` is a feature here and never a target. How much
+# traffic the link was carrying is a legitimate predictor of a latency spike;
+# it is useless as a capacity label because 91% of samples are idle.
+WETLINKS_FEATURE_COLUMNS: tuple[str, ...] = (
+    TARGET_COL,
+    "offered_downlink_mbps",
+    "offered_uplink_mbps",
+    "ping_drop_pct",
+    "ping_stdvar_ms",
+    "fraction_obstructed",
+    "obstruction_duration",
+    "obstruction_interval",
+    "dish_azimuth_deg",
+    "dish_elevation_deg",
+    "minute",
+    "hour",
+    "day_of_week",
+)
+
+WETLINKS_FEATURE_CLASSES: dict[str, tuple[str, ...]] = {
+    "throughput": (TARGET_COL,),
+    "satellite": ("fraction_obstructed", "obstruction_duration", "obstruction_interval",
+                  "dish_azimuth_deg", "dish_elevation_deg"),
+    "time": ("minute", "hour", "day_of_week"),
+    "weather": ("offered_downlink_mbps", "offered_uplink_mbps", "ping_drop_pct",
+                "ping_stdvar_ms"),
+}
+
 LOCATIONS: tuple[str, ...] = ("usa", "canada", "germany")
 
 # BG-CFQS renames the three StarNet locations. Kept so the baseline comparison
@@ -172,6 +206,14 @@ class RegimeConfig:
     elevation_edges: tuple[float, ...] = (45.0, 60.0)   # FCC floor is 25 degrees
     distance_edges: tuple[float, ...] = (645.0,)        # StarNet knee
     candidate_quantiles: tuple[float, ...] = (1 / 3, 2 / 3)
+    # WetLinks axes. Obstruction cuts are fit from the data because the scale is
+    # tiny and site specific (max 0.023 at uos-rz), so fixed edges would put
+    # every sample in one bucket. Azimuth is quartered into compass sectors.
+    # The hour buckets split the diurnal cycle the latency actually follows:
+    # 29.8 ms at 08:00 against 34.9 ms at 02:00.
+    obstruction_quantiles: tuple[float, ...] = (0.5, 0.9)
+    azimuth_sectors: int = 4
+    hour_edges: tuple[float, ...] = (6.0, 12.0, 18.0)
 
 
 @dataclass(frozen=True)
@@ -202,11 +244,19 @@ class DecisionConfig:
     commitment_mbps: float = 50.0
 
 
+#: Which dataset a run is against. This selects the feature set, the regime
+#: ablation grid and the risk direction together, because on these two datasets
+#: those three choices are not independent: WetLinks has no satellite geometry,
+#: aliases the scheduling phase, and its usable target is latency.
+DATASETS = ("starnet", "wetlinks")
+
+
 @dataclass(frozen=True)
 class ExperimentConfig:
     """One full run. Serialised next to its results."""
 
     name: str = "default"
+    dataset: str = "starnet"
     seed: int = 1337
     device: str = "auto"              # auto | cpu | cuda | mps
     data: DataConfig = field(default_factory=DataConfig)
@@ -216,6 +266,19 @@ class ExperimentConfig:
     calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
     split: SplitConfig = field(default_factory=SplitConfig)
     decision: DecisionConfig = field(default_factory=DecisionConfig)
+
+    def __post_init__(self) -> None:
+        if self.dataset not in DATASETS:
+            raise ValueError(f"dataset must be one of {DATASETS}, got {self.dataset!r}")
+
+    @property
+    def feature_columns(self) -> tuple[str, ...]:
+        return WETLINKS_FEATURE_COLUMNS if self.dataset == "wetlinks" else FEATURE_COLUMNS
+
+    @property
+    def direction(self) -> str:
+        """Latency is bounded from above; capacity from below."""
+        return "upper" if self.dataset == "wetlinks" else "lower"
 
     def to_dict(self) -> dict[str, Any]:
         return _as_jsonable(dataclasses.asdict(self))

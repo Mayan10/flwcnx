@@ -37,6 +37,7 @@ from flwcnx.ingest.base import (
     segment_frame,
     validate_frame,
 )
+from flwcnx.state.phase import sampling_aliases_period
 
 #: Site coordinates. uos-rz carries lat/lon in 29% of its rows and the values
 #: below are its measured medians; utwente carries none, so its coordinates are
@@ -230,18 +231,11 @@ class WetLinksSource(Source):
 
 def phase_is_aliased(frame: pd.DataFrame, period_seconds: float = 15.0,
                      tolerance: float = 1.0) -> bool:
-    """True when the sampling grid destroys the scheduling phase.
+    """Whether the sampling grid destroys the scheduling phase.
 
-    A guard, not a diagnostic. WetLinks samples every 30 s against a 15 s
-    period, so every sample sits at the same phase and the standard deviation
-    collapses to 0.156 s. Any code about to build a phase regime axis should
-    call this first and refuse rather than produce a constant feature that
-    looks like a working one.
+    Thin alias. The check lives in `state.phase` because `recover_phase` has to
+    consult it before doing anything: on aliased data the edge histogram shows
+    one towering peak and reports enormous confidence for a meaningless offset.
     """
-    seconds = frame[TIME_COL].astype("int64").to_numpy() / 1e9
-    phase = np.mod(seconds, period_seconds)
-    # Circular standard deviation, so the wrap point does not fake a spread.
-    angle = 2 * np.pi * phase / period_seconds
-    resultant = np.hypot(np.mean(np.cos(angle)), np.mean(np.sin(angle)))
-    circular_std = np.sqrt(-2 * np.log(max(resultant, 1e-12))) * period_seconds / (2 * np.pi)
-    return bool(circular_std < tolerance)
+    return sampling_aliases_period(frame[TIME_COL], period_seconds=period_seconds,
+                                   tolerance=tolerance)

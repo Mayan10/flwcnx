@@ -203,6 +203,8 @@ def test_sequence_shapes_and_units(sequences):
     assert sequences.y.shape[1] == 5
     assert sequences.phase.shape == (len(sequences), 30)
     assert list(sequences.regime.columns) == list(REGIME_COVARIATES)
+    # StarNet axes must be real, not the NaN placeholders.
+    assert sequences.regime["elevation_deg"].notna().all()
     # Standardising must not touch the target: every metric is in Mbps.
     assert sequences.y.mean() > 20.0
 
@@ -216,7 +218,11 @@ def test_regime_covariates_are_read_at_the_forecast_origin(feature_frame):
     single_segment = frame[frame["segment"] == frame["segment"].iloc[0]].reset_index(drop=True)
     for index in (0, 5, 50):
         origin_row = single_segment.iloc[index + 30 - 1]
-        for column in REGIME_COVARIATES:
+        # Axes the dataset does not carry come through as NaN, which is what
+        # the "na" regime bucket exists for. Only the present ones are checked.
+        present = [c for c in REGIME_COVARIATES if c in single_segment.columns]
+        assert present, "no regime covariates present to check"
+        for column in present:
             assert built.regime.iloc[index][column] == pytest.approx(
                 float(origin_row[column]), rel=1e-5
             )

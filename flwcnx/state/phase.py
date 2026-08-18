@@ -66,6 +66,15 @@ class PhaseReference:
     def is_recovered(self) -> bool:
         return self.method == "recovered"
 
+    @property
+    def is_usable(self) -> bool:
+        """False when the sampling grid makes phase meaningless.
+
+        A caller about to build a phase regime axis should check this, not
+        `confidence`, which is misleadingly high on aliased data.
+        """
+        return self.method != "aliased"
+
 
 def _epoch_seconds(times: pd.Series) -> np.ndarray:
     """Seconds since the epoch. 60 is a multiple of 15, so phase measured this
@@ -132,6 +141,36 @@ def detect_edges(
     return np.sort(np.asarray(accepted))
 
 
+def sampling_aliases_period(
+    times: pd.Series,
+    *,
+    period_seconds: float = float(PERIOD_SECONDS),
+    tolerance: float = 1.0,
+) -> bool:
+    """True when the sampling grid destroys the scheduling phase.
+
+    If the sampling interval is a multiple of the period, every sample lands at
+    the same point in it and the phase carries no information. This is not a
+    sparse-data problem that more samples would fix, it is aliasing.
+
+    The supplied WetLinks data is exactly this case: 30 s sampling against a
+    15 s period, with a measured circular phase spread of 0.156 s across
+    482,463 samples (docs/supplied-dataset.md).
+
+    Measured on the *sample* times, not the detected edges. The edge histogram
+    on aliased data has a single enormous peak and therefore an enormous
+    confidence, which is precisely why confidence alone cannot catch this.
+    """
+    seconds = _epoch_seconds(times)
+    if seconds.size < 2:
+        return False
+    angle = 2 * np.pi * np.mod(seconds, period_seconds) / period_seconds
+    resultant = float(np.hypot(np.mean(np.cos(angle)), np.mean(np.sin(angle))))
+    circular_std = (np.sqrt(-2 * np.log(max(resultant, 1e-12)))
+                    * period_seconds / (2 * np.pi))
+    return bool(circular_std < tolerance)
+
+
 def recover_phase(
     frame: pd.DataFrame,
     *,
@@ -152,6 +191,14 @@ def recover_phase(
     """
     if column not in frame.columns:
         raise KeyError(f"{column!r} not in frame")
+
+    n_bins_edges = np.linspace(0.0, float(PERIOD_SECONDS), n_bins + 1)
+    if sampling_aliases_period(frame[TIME_COL]):
+        # Every sample sits at the same phase, so the edge histogram would show
+        # one towering peak and report enormous confidence for a number that
+        # means nothing. Refuse, and say why in `method`.
+        return PhaseReference(FIXED_PHASE_OFFSET, 0.0, 0, "aliased",
+                              np.zeros(n_bins), n_bins_edges)
 
     signal = frame[column].to_numpy(dtype=float)
     times = _epoch_seconds(frame[TIME_COL])

@@ -23,6 +23,8 @@ from flwcnx.config import (
     PERIOD_SECONDS,
     TARGET_COL,
     TIME_COL,
+    WETLINKS_FEATURE_CLASSES,
+    WETLINKS_FEATURE_COLUMNS,
     FeatureConfig,
 )
 from flwcnx.state.phase import FIXED_PHASE_OFFSET, PhaseReference, assign_phase, recover_phase
@@ -31,7 +33,11 @@ from flwcnx.state.satellite import SatelliteEncoder, resolve_from_frame
 # Covariates the regime assigner reads. Carried alongside every sample so the
 # calibration layer never has to go back to the frame.
 REGIME_COVARIATES: tuple[str, ...] = (
+    # StarNet axes.
     "phase_seconds", "elevation_deg", "distance_km", "candidate_count",
+    # WetLinks axes. Carried for every dataset because the cost is four float
+    # columns per window and the alternative is a second SequenceSet shape.
+    "fraction_obstructed", "dish_azimuth_deg", "hour",
 )
 
 
@@ -113,12 +119,21 @@ class SequenceSet:
         )
 
     def class_slices(self) -> dict[str, list[int]]:
-        """Feature index groups for StarNet's per class periodical embedding."""
+        """Feature index groups for StarNet's per class periodical embedding.
+
+        Picks the grouping that matches the feature set the sequences actually
+        carry, so a WetLinks run gets the WetLinks classes rather than a set of
+        empty groups named after satellite columns it does not have.
+        """
         lookup = {name: i for i, name in enumerate(self.feature_names)}
-        return {
+        classes = (WETLINKS_FEATURE_CLASSES
+                   if set(self.feature_names) == set(WETLINKS_FEATURE_COLUMNS)
+                   else FEATURE_CLASSES)
+        groups = {
             klass: [lookup[c] for c in cols if c in lookup]
-            for klass, cols in FEATURE_CLASSES.items()
+            for klass, cols in classes.items()
         }
+        return {k: v for k, v in groups.items() if v}
 
 
 def build_features(
@@ -127,6 +142,7 @@ def build_features(
     config: FeatureConfig | None = None,
     phase_reference: PhaseReference | float | None = None,
     encoder: SatelliteEncoder | None = None,
+    feature_columns: tuple[str, ...] = FEATURE_COLUMNS,
 ) -> tuple[pd.DataFrame, PhaseReference, SatelliteEncoder]:
     """Turn a normalized frame into a feature frame.
 
@@ -155,11 +171,21 @@ def build_features(
     work["minute"] = work[TIME_COL].dt.minute
     work["hour"] = work[TIME_COL].dt.hour
 
-    if encoder is None:
-        encoder = SatelliteEncoder().fit(work["sat_id"])
-    work["sat_id_encoded"] = encoder.transform(work["sat_id"])
-
-    work = resolve_from_frame(work)
+    # WetLinks carries no serving satellite at all, so the encoder and the
+    # handover derivation have nothing to work on. Producing a column of zeros
+    # and calling it an encoded satellite ID would be a fabricated feature, so
+    # the satellite work is skipped and the columns stay null.
+    has_satellites = "sat_id" in work.columns and work["sat_id"].notna().any()
+    if has_satellites:
+        if encoder is None:
+            encoder = SatelliteEncoder().fit(work["sat_id"])
+        work["sat_id_encoded"] = encoder.transform(work["sat_id"])
+        work = resolve_from_frame(work)
+    else:
+        encoder = encoder or SatelliteEncoder()
+        work["sat_id_encoded"] = np.nan
+        work["handover"] = False
+        work["dwell_seconds"] = np.nan
 
     # Time of day is cyclic, and a raw second-of-day tells a model that 23:59
     # and 00:00 are as far apart as it is possible to be. StarNet feed time of
@@ -172,7 +198,7 @@ def build_features(
     work["phase_sin"] = np.sin(phase_angle)
     work["phase_cos"] = np.cos(phase_angle)
 
-    for column in FEATURE_COLUMNS:
+    for column in feature_columns:
         if column not in work.columns:
             raise KeyError(f"feature column {column!r} missing after assembly")
         # Weather is hourly and satellite geometry can drop out for a sample or
@@ -182,7 +208,7 @@ def build_features(
                 work.groupby("segment")[column]
                 .transform(lambda s: s.interpolate(limit_direction="both"))
             )
-    work[list(FEATURE_COLUMNS)] = work[list(FEATURE_COLUMNS)].fillna(0.0)
+    work[list(feature_columns)] = work[list(feature_columns)].fillna(0.0)
     return work, reference, encoder
 
 
@@ -220,7 +246,10 @@ def make_sequences(
         target = part[TARGET_COL].to_numpy(dtype=float)
         phase = part["phase_seconds"].to_numpy(dtype=float)
         times = part[TIME_COL].to_numpy()
-        covariates = part[list(REGIME_COVARIATES)].to_numpy(dtype=float)
+        # reindex rather than select: a dataset that lacks an axis gets NaN
+        # for it, and the regime assigner buckets NaN as "na" rather than
+        # inventing a value.
+        covariates = part.reindex(columns=list(REGIME_COVARIATES)).to_numpy(dtype=float)
 
         for start in range(0, len(part) - total + 1, stride):
             origin = start + lookback - 1          # last observed step

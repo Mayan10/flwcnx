@@ -33,12 +33,20 @@ from flwcnx.config import PERIOD_SECONDS, RegimeConfig
 
 GLOBAL_LABEL = "global"
 
-#: Columns an assignable frame must carry.
+#: Regime axis -> the column it reads.
+#:
+#: The first four are the StarNet axes from the brief. The last three exist
+#: because the supplied WetLinks data has none of the satellite geometry and
+#: its 30 s grid aliases the phase; obstruction, dish pointing and hour of day
+#: are what is actually observable there (docs/supplied-dataset.md).
 REQUIRED_COLUMNS: dict[str, str] = {
     "phase": "phase_seconds",
     "elevation": "elevation_deg",
     "distance": "distance_km",
     "candidates": "candidate_count",
+    "obstruction": "fraction_obstructed",
+    "azimuth": "dish_azimuth_deg",
+    "hour": "hour",
 }
 
 
@@ -87,18 +95,25 @@ class RegimeAssigner:
 
     config: RegimeConfig = field(default_factory=RegimeConfig)
     _candidate_edges: tuple[float, ...] = field(default=(), repr=False)
+    _obstruction_edges: tuple[float, ...] = field(default=(), repr=False)
     _fitted: bool = field(default=False, repr=False)
+
+    def _fit_edges(self, frame: pd.DataFrame, axis: str,
+                   quantiles: tuple[float, ...]) -> tuple[float, ...]:
+        values = pd.to_numeric(frame[REQUIRED_COLUMNS[axis]], errors="coerce").dropna()
+        if values.empty:
+            return ()
+        # Collapse duplicate edges rather than creating an empty bucket. This
+        # matters for obstruction, which is exactly zero in most rows.
+        return tuple(float(e) for e in np.unique(np.quantile(values, quantiles)))
 
     def fit(self, frame: pd.DataFrame) -> RegimeAssigner:
         if "candidates" in self.config.axes:
-            values = pd.to_numeric(frame[REQUIRED_COLUMNS["candidates"]],
-                                   errors="coerce").dropna()
-            if values.empty:
-                self._candidate_edges = ()
-            else:
-                edges = np.quantile(values, self.config.candidate_quantiles)
-                # Collapse duplicate edges rather than creating an empty bucket.
-                self._candidate_edges = tuple(float(e) for e in np.unique(edges))
+            self._candidate_edges = self._fit_edges(frame, "candidates",
+                                                    self.config.candidate_quantiles)
+        if "obstruction" in self.config.axes:
+            self._obstruction_edges = self._fit_edges(frame, "obstruction",
+                                                      self.config.obstruction_quantiles)
         self._fitted = True
         return self
 
@@ -145,6 +160,22 @@ class RegimeAssigner:
             if not self._fitted:
                 raise RuntimeError("RegimeAssigner.assign before fit (candidate terciles)")
             return self._binned(values, self._candidate_edges, "c")
+        if axis == "obstruction":
+            if not self._fitted:
+                raise RuntimeError("RegimeAssigner.assign before fit (obstruction cuts)")
+            return self._binned(values, self._obstruction_edges, "o")
+        if axis == "azimuth":
+            sectors = max(int(self.config.azimuth_sectors), 1)
+            # Dish azimuth arrives in [-180, 180); wrap to [0, 360) before
+            # sectoring or north splits across two buckets.
+            wrapped = np.mod(values, 360.0)
+            index = np.floor(wrapped / (360.0 / sectors))
+            out = np.array([f"s{int(i) % sectors}" for i in np.nan_to_num(index)],
+                           dtype=object)
+            out[~np.isfinite(values)] = "na"
+            return out
+        if axis == "hour":
+            return self._binned(values, self.config.hour_edges, "h")
         raise ValueError(f"unknown regime axis {axis!r}")
 
     # -- hierarchy ---------------------------------------------------------
@@ -229,4 +260,20 @@ def regime_granularity_presets() -> dict[str, tuple[str, ...]]:
         "phase": ("phase",),
         "phase+elevation": ("phase", "elevation"),
         "full": ("phase", "elevation", "distance", "candidates"),
+    }
+
+
+def wetlinks_granularity_presets() -> dict[str, tuple[str, ...]]:
+    """The ablation grid for the supplied dataset.
+
+    Phase and satellite geometry are unavailable there, so the question the
+    ablation answers changes: does conditioning on obstruction, dish pointing
+    and time of day recover the conditional risk control that the StarNet
+    axes would have given.
+    """
+    return {
+        "global": (),
+        "obstruction": ("obstruction",),
+        "obstruction+hour": ("obstruction", "hour"),
+        "full": ("obstruction", "hour", "azimuth"),
     }
