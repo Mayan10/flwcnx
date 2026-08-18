@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flwcnx"
+version = "0.1.0"
+description = "Predictive bandwidth allocation for Starlink access links: regime-conditioned safe throughput bounds."
+requires-python = ">=3.11"
+authors = [{ name = "Mayan Sharma", email = "mayan25sharma@gmail.com" }]
+readme = "README.md"
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "scipy>=1.11",
+  "scikit-learn>=1.4",
+  "xgboost>=2.0",
+  "torch>=2.1",
+  "matplotlib>=3.8",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+orbital = ["sgp4>=2.23", "skyfield>=1.48"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+include = ["flwcnx*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

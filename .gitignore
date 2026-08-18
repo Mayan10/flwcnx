@@ -1,0 +1,48 @@
+# Data and artifacts never enter the history.
+data/
+!data/.gitkeep
+results/
+!results/summary/
+outputs/
+wandb/
+runs/
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.npz
+*.parquet
+*.feather
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS and editor
+.DS_Store
+.idea/
+.vscode/
