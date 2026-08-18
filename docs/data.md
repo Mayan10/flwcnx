@@ -5,6 +5,17 @@
 Repo: https://github.com/ConnectedSystemsLab/StarNet
 Paper: https://dl.acm.org/doi/10.1145/3768971
 
+### The links are dead (checked 2026-08-18)
+
+All three OneDrive links below now return "Sorry, the link has expired. The
+link was set to expire after a certain amount of time." They are the current
+links from the repo README as of its last commit (2025-12-24, "add
+codes/datasets v1"). The repo has no issues, no forks and no alternative
+mirror, and the ACM DL entry carries no artifact DOI.
+
+The traces have to be requested from the authors. Contact and fallback options
+are in `docs/data-access.md`.
+
 ### The data is not in the repo
 
 The repo carries the measurement tool, the model and a TimesNet baseline. The
