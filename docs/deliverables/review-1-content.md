@@ -19,7 +19,7 @@ System Design (5).
 
 ---
 
-# SECTION 1 — Knowledge on Domain / Problem Statement (5 marks)
+# SECTION 1, Knowledge on Domain / Problem Statement (5 marks)
 
 ## 1.1 The domain in one paragraph
 
@@ -112,12 +112,12 @@ being used to control a system with several distinct operating regimes.
 
 ---
 
-# SECTION 2 — Literature Review (5 marks, minimum 15 recent papers)
+# SECTION 2, Literature Review (5 marks, minimum 15 recent papers)
 
 Twenty entries, grouped by the role each plays. For each: what they did, the
 finding that matters, and what it leaves open.
 
-## Group A — Measurement and characterisation of LEO links (O1, O2)
+## Group A, Measurement and characterisation of LEO links (O1, O2)
 
 **1. Michel, Trevisan, Giordano, Bonaventure. "A First Look at Starlink
 Performance." ACM IMC, 2022.**
@@ -165,7 +165,7 @@ Methodological grounding for measurement-driven study.
 Longitudinal measurement including the relationship between satellite
 visibility and observed performance.
 
-## Group B — Datasets and weather
+## Group B, Datasets and weather
 
 **9. Laniewski, Lanfer, Meijerink, van Rijswijk-Deij, Aschenbruck. "WetLinks: A
 Large-Scale Longitudinal Starlink Dataset with Contiguous Weather Data." IFIP
@@ -185,11 +185,11 @@ MMSys, 2024.**
 Twenty measurement locations, high-rate latency and obstruction maps.
 Cross-validation source for the latency findings.
 
-## Group C — Prediction (O3, O4)
+## Group C, Prediction (O3, O4)
 
 **12. Liu, Reidys, Tanveer, Vasisht. "Vivisecting Starlink Throughput:
 Measurement and Prediction" (StarNet). Proc. ACM Networking, 3(CoNEXT4), 2025.
-DOI 10.1145/3768971. — BASE PAPER.**
+DOI 10.1145/3768971., BASE PAPER.**
 The forecasting backbone this project reproduces. A GRU sequence-to-sequence
 model with two innovations: a **periodical embedding** that convolves each
 feature class separately and carries an explicit within-period phase channel,
@@ -212,7 +212,7 @@ Global Starlink Performance." Proc. ACM Meas. Anal. Comput. Syst. (SIGMETRICS),
 Global crowdsourced study, 11 months, 90+ countries. **Key finding used
 directly:** latency prediction is best with a two-month training window, while
 throughput improves monotonically out to eleven months. The two signals are
-non-stationary on *different* timescales — which is the argument for temporal
+non-stationary on *different* timescales, which is the argument for temporal
 rather than random splits. Also reports latitude as the single strongest
 feature (42-46% importance).
 
@@ -232,7 +232,7 @@ The methodological template for throughput prediction on a highly variable
 wireless link, from the 5G domain. Establishes that context features
 (geometry, orientation) matter more than history alone.
 
-## Group D — Forecasting backbones used as baselines
+## Group D, Forecasting backbones used as baselines
 
 **17. Zeng, Chen, Zhang, Xu. "Are Transformers Effective for Time Series
 Forecasting?" (DLinear). AAAI, 2023.**
@@ -250,10 +250,10 @@ Detects dominant periods by FFT and reshapes the series into 2D to capture
 intra- and inter-period variation jointly. Especially relevant given the known
 15 s periodicity; also the baseline shipped in the StarNet repository.
 
-## Group E — Risk, calibration and decision-making
+## Group E, Risk, calibration and decision-making
 
 **20. Xie, Zhang, Luo, Zhang, Yang, Zhang, Soong. "Risk-Aware Safe Throughput
-Forecasting for Starlink Networks" (BG-CFQS). arXiv:2605.09508, 2026. — DIRECT
+Forecasting for Starlink Networks" (BG-CFQS). arXiv:2605.09508, 2026., DIRECT
 BASELINE.**
 The closest prior work and the one this project improves on. Proposes
 budget-guided coarse-to-fine quantile selection: train quantile regressors, then
@@ -267,7 +267,7 @@ subset 0.83-0.86. *Leaves open:* one global quantile cannot control risk within
 regimes.
 
 **21. Vovk, Gammerman, Shafer. "Algorithmic Learning in a Random World."
-Springer.** (Foundational, not recent — cite for method not novelty.)
+Springer.** (Foundational, not recent, cite for method not novelty.)
 Split conformal prediction: the theory giving distribution-free finite-sample
 coverage guarantees, on which the calibration layer is built. Important caveat
 used explicitly in this project: the guarantee is **marginal**, holding on
@@ -300,7 +300,7 @@ risk control where it matters, and the direct baseline's own numbers prove it.
 
 ---
 
-# SECTION 3 — Design of Proposed Methodology (5 marks)
+# SECTION 3, Design of Proposed Methodology (5 marks)
 
 ## 3.1 The contribution, in one sentence
 
@@ -312,7 +312,7 @@ risk control where it matters, and the direct baseline's own numbers prove it.
 ## 3.2 Why a global operating point cannot work (the core argument)
 
 A conformal or quantile bound guarantees `P(bound > actual) <= epsilon`
-**marginally** — averaged over everything.
+**marginally**, averaged over everything.
 
 If the residual distribution is wider in one operating condition than another,
 the single offset that hits the budget on average sits **too high in the wide
@@ -324,7 +324,7 @@ against 0.86 on the worst decile) are this effect measured.
 ## 3.3 Regime definition
 
 A regime is a bucket over covariates available **at prediction time** (read at
-the forecast origin, never from the horizon — otherwise the layer would be
+the forecast origin, never from the horizon, otherwise the layer would be
 using the future):
 
 | Axis | Buckets | Justification from the literature |
@@ -337,7 +337,7 @@ using the future):
 **Sparsity handling.** The full cross-product is too sparse to calibrate
 directly. A **coarsening hierarchy** is defined: if a regime has fewer than N
 calibration points, it falls back to a coarser regime, ultimately to global
-calibration. The fallback is **explicit and reported** — the fraction of
+calibration. The fallback is **explicit and reported**, the fraction of
 calibration mass resolved at each level is published alongside every result,
 because if most mass falls back to global then the layer is doing nothing and
 the ablation must say so.
@@ -381,7 +381,7 @@ global / phase only / phase+elevation / full cross-product.
 
 **Downstream:** admission control with b = 10 Mbps per session. Admit
 `floor(safe_forecast / b)` against an oracle `floor(actual / b)`. Report mean
-dropped sessions, violation rate, P95 dropped, **and utilisation** — without
+dropped sessions, violation rate, P95 dropped, **and utilisation**, without
 utilisation a policy can win on dropped sessions by admitting nobody.
 
 ## 3.6 What must be true for this to be a result
@@ -391,7 +391,7 @@ Global OverRate stays at or below the budget (matching the baseline), while
 0.65-0.86 range, at comparable MAE. **If MAE collapses because the bounds became
 uselessly conservative, that is a negative result and will be reported as one.**
 
-## 3.7 Contribution boundary (state this explicitly — it earns marks)
+## 3.7 Contribution boundary (state this explicitly, it earns marks)
 
 | Component | Status |
 |---|---|
@@ -405,7 +405,7 @@ uselessly conservative, that is a negative result and will be reported as one.**
 
 ---
 
-# SECTION 4 — Module Description / System Design (5 marks)
+# SECTION 4, Module Description / System Design (5 marks)
 
 ## 4.1 Architecture: five layers, strictly downward
 
@@ -429,7 +429,7 @@ without touching anything else.
 
 ## 4.2 Module-by-module description
 
-### `ingest/` — sources to a normalised frame
+### `ingest/`, sources to a normalised frame
 | Module | Responsibility |
 |---|---|
 | `base.py` | The `Source` interface; segment-aware windowing so no look-back ever spans a trace gap |
@@ -444,7 +444,7 @@ without touching anything else.
 interface** from day one, so the architecture is honest rather than a notebook
 wearing a diagram.
 
-### `state/` — frame to features and regimes
+### `state/`, frame to features and regimes
 | Module | Responsibility |
 |---|---|
 | `phase.py` | Recovers the 15 s scheduling phase from the signal (edge detection, minimum spacing, phase histogram, circular mean); falls back to the published offset only when not confident |
@@ -452,31 +452,31 @@ wearing a diagram.
 | `regime.py` | **Regime assignment, the coarsening hierarchy, and the fallback report** |
 | `features.py` | Assembles the feature vector and windows it into look-back/horizon pairs; regime covariates read at the forecast origin |
 
-### `forecast/` — features to a point prediction
+### `forecast/`, features to a point prediction
 | Module | Responsibility |
 |---|---|
 | `starnet.py` | GRU encoder-decoder (2 layers, hidden 128), periodical embedding (one 1D conv per feature class to L x 48 plus a raw phase channel), additive attention (three single-layer MLPs), 2-layer projection head. Both published ablations included |
 | `baselines.py` | DLinear, PatchTST, TimesNet, XGBoost (with pinball loss for the quantile baseline) |
 | `train.py` | AdamW, exponential LR decay, gradient clipping, early stopping restoring best weights |
 
-### `calibrate/` — prediction to a safe bound (**the contribution**)
+### `calibrate/`, prediction to a safe bound (**the contribution**)
 | Module | Responsibility |
 |---|---|
 | `conformal.py` | One-sided split conformal bound; both directions (lower for capacity, upper for latency) |
 | `bgcfqs.py` | Reimplementation of the baseline's coarse-to-fine quantile search |
 | `regime_cal.py` | **Per-regime operating points, hierarchy fallback, and the summary report pairing risk gain with MAE cost** |
 
-### `decide/` — bound to actions
+### `decide/`, bound to actions
 | Module | Responsibility |
 |---|---|
 | `admission.py` | Admit `floor(bound / 10 Mbps)` sessions; scores dropped sessions, violation rate and utilisation against an oracle |
 | `congestion.py` | Congestion = bound below commitment for W sustained slots. Causal (never uses future samples). Reports lead time ahead of real episodes |
 
-### `eval/` — measurement
+### `eval/`, measurement
 | Module | Responsibility |
 |---|---|
 | `splits.py` | Temporal, contiguous 8:2, leave-one-location-out; purge bands; explicit leak check on every run |
-| `metrics.py` | MAE, RMSE, OverRate, MPE, P95+Err — globally, per regime, and on the P30/P10 risk slices |
+| `metrics.py` | MAE, RMSE, OverRate, MPE, P95+Err, globally, per regime, and on the P30/P10 risk slices |
 | `runner.py` | The experiment grid; one config snapshot written beside every result |
 | `figures.py` | Publication figures |
 
@@ -507,16 +507,16 @@ Weather station   ─┘                     │
 
 ## 4.4 Diagrams to produce for the slides
 
-1. **Layer stack** — the five boxes above, with one arrow down between each.
-2. **The motivating failure** — grouped bar chart: x-axis All / P30 / P10;
+1. **Layer stack**, the five boxes above, with one arrow down between each.
+2. **The motivating failure**, grouped bar chart: x-axis All / P30 / P10;
    bars for point forecast, global quantile baseline, proposed method; a dashed
    horizontal line at the budget. The story is that the first two bars are fine
    on the left and terrible on the right.
-3. **Regime hierarchy** — a tree: full cross-product at the bottom, coarsening
+3. **Regime hierarchy**, a tree: full cross-product at the bottom, coarsening
    upward to global, with the min-sample fallback arrows drawn.
-4. **The 15 s period** — a throughput trace annotated with the recovered
+4. **The 15 s period**, a throughput trace annotated with the recovered
    scheduling boundaries and the dip at each one.
-5. **Data flow** — as in 4.3.
+5. **Data flow**, as in 4.3.
 
 ## 4.5 Engineering practices worth one slide
 
@@ -530,7 +530,7 @@ Weather station   ─┘                     │
 
 ---
 
-# APPENDIX — Suggested slide deck (12-14 slides)
+# APPENDIX, Suggested slide deck (12-14 slides)
 
 | # | Slide | Content source |
 |---|---|---|
@@ -555,7 +555,7 @@ number, make it *0.35 global versus 0.86 on the worst decile*.
 
 ---
 
-# PART 2 — PRESENTATION DELIVERY PACK
+# PART 2, PRESENTATION DELIVERY PACK
 
 Everything below is for standing up and talking. Speaker notes are written as
 what to *say*, not as bullet points to read off a slide.
@@ -575,7 +575,7 @@ If running short on time, cut slides 7 and 13. **Never cut slide 9.**
 
 ## Speaker notes, slide by slide
 
-**Slide 2 — What LEO is.**
+**Slide 2, What LEO is.**
 "Starlink satellites orbit at about 550 kilometres, not 36,000 like traditional
 geostationary satellites. That's a 65-fold reduction in distance, and it's why
 latency drops from around 600 milliseconds to around 30. But the satellites are
@@ -583,22 +583,22 @@ moving at 7.5 kilometres per second, so any one of them is only usable for a
 few minutes before your terminal has to be handed to another. The link is fast,
 and it is non-stationary by construction. That trade is the entire domain."
 
-**Slide 3 — Why it's hard.**
+**Slide 3, Why it's hard.**
 "Five mechanisms drive the variation, and each one is a feature we use. First,
-Starlink reschedules every 15 seconds — measurement work has pinned the
+Starlink reschedules every 15 seconds, measurement work has pinned the
 reconfiguration instants to the 12th, 27th, 42nd and 57th second of each
 minute. Second, at those boundaries the serving satellite can change, and you
 see a throughput dip and a latency spike. Third, throughput depends on the
-serving satellite's geometry — it rises with elevation and plateaus above 60
+serving satellite's geometry, it rises with elevation and plateaus above 60
 degrees, and it falls off past about 645 kilometres of range. Fourth, more
 visible satellites means more scheduling freedom; throughput rises about 26%
 going from 15 to 45 candidates. Fifth, weather and physical obstruction."
 
 Then the line that sets up everything: *"The property that matters for us is
-that the prediction error isn't just noisy — it's noisier in some conditions
+that the prediction error isn't just noisy, it's noisier in some conditions
 than others, and specifically noisiest when capacity is already lowest."*
 
-**Slide 4 — The problem statement.**
+**Slide 4, The problem statement.**
 "We were given six industry needs. We address three, and we chose these three
 because they chain into one system rather than being three disconnected models.
 We predict throughput degradation, we detect congestion, and we allocate
@@ -608,24 +608,24 @@ falling below the committed allocation for a sustained window. That gets us the
 second problem almost for free, and it guarantees the alert and the allocator
 never disagree about when the link is in trouble."
 
-**Slide 6-8 — Literature.**
+**Slide 6-8, Literature.**
 Frame it as three phases, not a list:
 "The field has moved through three phases. From 2022 to 2024 the work was
-measurement — establishing what these links actually do. From 2023 to 2026 it
-became prediction — showing throughput and latency are learnable from terminal
+measurement, establishing what these links actually do. From 2023 to 2026 it
+became prediction, showing throughput and latency are learnable from terminal
 and geometry features. And in 2026 it became risk-aware prediction, which is
 the current frontier, and it has taken exactly one step: controlling the
 overestimation rate globally. Our work is the next step after that."
 
-**Slide 9 — THE GAP. Slow down. This is the slide that earns the marks.**
+**Slide 9, THE GAP. Slow down. This is the slide that earns the marks.**
 "Here is the problem with controlling risk globally. The direct baseline sets a
-budget of 0.35 — meaning they'll accept overestimating 35% of the time — and
+budget of 0.35, meaning they'll accept overestimating 35% of the time, and
 they hit it, 0.349 globally. But look what happens when you split by how much
 capacity the link actually had. On the lowest 30% of throughput samples, their
 overestimation rate is 0.65 to 0.71. On the lowest 10%, it's 0.83 to 0.86.
 
 So risk is controlled on average, and lost precisely in the low-capacity regime
-— which is exactly the regime where over-allocating actually drops user
+,  which is exactly the regime where over-allocating actually drops user
 sessions. When the link is healthy, being wrong is cheap. When the link is
 struggling, being wrong is expensive, and that's exactly where the guarantee
 stops holding.
@@ -634,22 +634,22 @@ These aren't our numbers criticising them. These are their own published
 numbers. One knob is being used to control a system that has several distinct
 operating regimes."
 
-**Slide 10 — The proposed method.**
+**Slide 10, The proposed method.**
 "Our contribution is a regime-conditioned calibration layer. Instead of one
 global operating point, we estimate a separate one inside each operating
 regime, where a regime is a bucket over covariates the terminal already has at
-prediction time — the 15-second phase, the serving satellite's elevation and
+prediction time, the 15-second phase, the serving satellite's elevation and
 distance, and how many candidate satellites are visible.
 
 The reason this works is mathematical, not empirical. A conformal bound
-guarantees coverage *marginally* — averaged over everything. If residuals are
+guarantees coverage *marginally*, averaged over everything. If residuals are
 wider in one condition than another, the single offset that hits the budget on
 average sits too high in the wide condition and too low in the narrow one.
 Condition on the regime, and each one gets an offset sized for its own residual
 spread."
 
-**Slide 11 — Procedure.**
-"Five steps. Split temporally, never randomly — and there's evidence for that:
+**Slide 11, Procedure.**
+"Five steps. Split temporally, never randomly, and there's evidence for that:
 Horizon found latency prediction is best with a two-month training window while
 throughput keeps improving out to eleven months, so the two signals are
 non-stationary on different timescales and a random split hides all of it.
@@ -658,26 +658,26 @@ calibration split, grouped by regime. Select each regime's operating point.
 Apply it at test time.
 
 One practical problem: the full cross-product of regimes is too sparse to
-calibrate directly. So we define a coarsening hierarchy — if a regime has too
+calibrate directly. So we define a coarsening hierarchy, if a regime has too
 few calibration points, it falls back to a coarser one, and ultimately to
 global. And we *report* how much mass fell back, because if most of it lands on
 global then our layer isn't doing anything and the ablation has to say so."
 
-**Slide 12-13 — Architecture.**
+**Slide 12-13, Architecture.**
 "Five layers, and each one only talks to the one below it. Ingest normalises
 raw sources with no ML and no feature engineering. State turns that into
 feature vectors and regime labels with no model. Forecast produces a point
-prediction. Calibrate turns it into a safe bound — that's our layer. Decide
+prediction. Calibrate turns it into a safe bound, that's our layer. Decide
 turns the bound into allocations and alerts, again with no ML.
 
 The separation is what makes it testable, and it's what lets us ablate the
 calibration layer without touching anything else."
 
-**Slide 14 — Success criteria. End on this, it shows rigour.**
+**Slide 14, Success criteria. End on this, it shows rigour.**
 "We've defined in advance what counts as success: global overestimation rate
 stays at or below budget, matching the baseline, while the conditional rate on
 the worst 30% and 10% drops substantially below their 0.65-to-0.86 range, at
-comparable accuracy. And we've also defined what counts as failure — if the
+comparable accuracy. And we've also defined what counts as failure, if the
 bounds become so conservative that accuracy collapses, that's a negative result
 and we report it as one rather than only showing the risk metrics."
 
@@ -701,13 +701,13 @@ and we report it as one rather than only showing the risk metrics."
 "A better point forecaster reduces average error but doesn't tell you how much
 to trust any individual prediction. Even a perfect-on-average model is above
 the truth roughly half the time, and each of those is a potential dropped
-session. Calibration is orthogonal — it converts whatever forecaster you have
+session. Calibration is orthogonal, it converts whatever forecaster you have
 into a bound with a controlled failure rate. And it composes: a better backbone
 makes our bounds tighter."
 
 **"Isn't this just quantile regression?"**
 "Quantile regression estimates a conditional quantile by fitting a model with
-pinball loss, and it gives no finite-sample guarantee — if the model is
+pinball loss, and it gives no finite-sample guarantee, if the model is
 misspecified, the quantile is wrong. Conformal calibration gives a
 distribution-free guarantee that holds for any underlying model. Our
 contribution is that we make that guarantee hold *within* regimes rather than
@@ -715,21 +715,21 @@ only on average."
 
 **"Why these four regime axes and not others?"**
 "Every one comes from a measured relationship in the literature, not from
-convenience — the elevation plateau at 60 degrees, the distance knee at 645
+convenience, the elevation plateau at 60 degrees, the distance knee at 645
 kilometres, the 26% candidate-count effect, and the attention concentration at
 the period opening. And we run a granularity ablation precisely to test whether
 they all earn their place. If phase alone gets most of the benefit and satellite
-geometry adds nothing, we report that — a clean negative ablation is a result."
+geometry adds nothing, we report that, a clean negative ablation is a result."
 
 **"How do you know the regime split isn't just overfitting?"**
 "Three protections. The regime definition is fixed before seeing calibration
 data. The calibration split is used only to select the operating point and is
 never fit on. And the minimum-sample guard means a regime that doesn't have
-enough data to estimate a quantile doesn't get its own — it falls back, and we
+enough data to estimate a quantile doesn't get its own, it falls back, and we
 report how often that happens."
 
 **"What's your dataset?"**
-"Primary is WetLinks — two European terminals measured continuously for six
+"Primary is WetLinks, two European terminals measured continuously for six
 months with co-located professional weather stations, giving per-second
 throughput, latency and weather. That's about 1.65 million samples at 1 Hz
 across both sites. We also target the StarNet traces from the base paper for
@@ -739,7 +739,7 @@ reproduction."
 Answer honestly and briefly: "We have the full pipeline running end to end on
 real data and early pilot runs. The conditional failure we're targeting does
 reproduce on our dataset, independently of the paper that first reported it.
-The full evaluation grid — the risk budget sweep and the regime ablation — is
+The full evaluation grid, the risk budget sweep and the regime ablation, is
 what we're running now."
 *(Do not quote pilot numbers as final results. They are from short training
 runs on one site.)*
@@ -754,7 +754,7 @@ doing all the work, which is why we report the mass at each level."
 **"What happens if it doesn't work?"**
 "Then we report that. We've pre-specified the failure condition: if the
 per-regime bounds become so conservative that accuracy collapses, that's a
-negative result. We also have a limitations document tracking a known issue —
+negative result. We also have a limitations document tracking a known issue , 
 that conformal's guarantee assumes exchangeability, and a temporal split
 deliberately breaks it. That affects the baseline equally, and it's the next
 thing we address."
@@ -764,10 +764,10 @@ thing we address."
 - Do **not** claim to have reproduced StarNet's published table. Their dataset
   links have expired and we are waiting on the authors.
 - Do **not** compare our error figures to StarNet's published numbers. Different
-  link, country, and sequence length — not like-for-like.
+  link, country, and sequence length, not like-for-like.
 - Do **not** present pilot numbers as final results.
 - Do **not** claim the risk budget is currently met. It is not, for us or for
-  the baseline, because of temporal drift — say it is a known limitation being
+  the baseline, because of temporal drift, say it is a known limitation being
   addressed if asked.
 - Do **not** describe the satellite geometry on WetLinks as measured. It is
   reconstructed from propagated orbital elements.

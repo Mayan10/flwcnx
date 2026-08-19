@@ -1,0 +1,499 @@
+<title>Predictive Bandwidth Allocation for Starlink: Review 1</title>
+<style>
+  :root{
+    color-scheme: light;
+    --ground:#FBFBFC; --ink:#12161C; --ink-2:#3C4653; --muted:#6B7583;
+    --rule:#DFE4EA; --accent:#B4531B; --accent-2:#8E4015;
+    --s1:#4a3aa7; --s2:#eb6834;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --serif: ui-serif, Georgia, "Iowan Old Style", serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --ground:#0D1014; --ink:#EDF1F6; --ink-2:#C6CEDA; --muted:#8E99A8;
+      --rule:#242A33; --accent:#E9853D; --accent-2:#F2A265;
+      --s1:#9085e9; --s2:#eb6834;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ground:#0D1014; --ink:#EDF1F6; --ink-2:#C6CEDA; --muted:#8E99A8;
+    --rule:#242A33; --accent:#E9853D; --accent-2:#F2A265;
+    --s1:#9085e9; --s2:#eb6834;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--ground); color:var(--ink);
+       font-family:var(--sans); overflow:hidden}
+  #prog{position:fixed; top:0; left:0; height:3px; background:var(--accent);
+        width:0; transition:width .25s ease; z-index:50}
+  .slide{position:absolute; inset:0; display:none;
+         padding:clamp(34px,5.5vh,74px) clamp(30px,6.5vw,110px);
+         flex-direction:column; justify-content:center}
+  .slide.on{display:flex; animation:fade .3s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+  @media(prefers-reduced-motion:reduce){.slide.on{animation:none} #prog{transition:none}}
+
+  .eyebrow{font-size:clamp(10px,1.05vw,12px); letter-spacing:.18em; text-transform:uppercase;
+           color:var(--accent); font-weight:700; margin:0 0 clamp(12px,2.2vh,24px)}
+  h1{font-size:clamp(30px,5.6vw,66px); line-height:1.06; letter-spacing:-.028em;
+     font-weight:680; margin:0 0 20px; text-wrap:balance; max-width:20ch}
+  h2{font-size:clamp(22px,3.6vw,42px); line-height:1.12; letter-spacing:-.022em;
+     font-weight:670; margin:0 0 clamp(16px,2.6vh,30px); text-wrap:balance; max-width:24ch}
+  .sub{font-size:clamp(15px,1.9vw,23px); color:var(--ink-2); line-height:1.45;
+       max-width:34ch; margin:0}
+  .kicker{font-family:var(--serif); font-style:italic;
+          font-size:clamp(15px,1.95vw,24px); color:var(--accent-2);
+          line-height:1.4; max-width:34ch; margin:clamp(16px,2.6vh,28px) 0 0}
+  ul{margin:0; padding:0; list-style:none; display:flex; flex-direction:column;
+     gap:clamp(9px,1.6vh,18px); max-width:38ch}
+  li{display:flex; gap:16px; align-items:baseline;
+     font-size:clamp(14px,1.85vw,22px); line-height:1.35; color:var(--ink-2)}
+  li b{color:var(--ink); font-weight:660}
+  .idx{font-family:var(--mono); font-size:.72em; color:var(--accent);
+       font-weight:600; flex:none; min-width:1.6em}
+  .cols{display:grid; grid-template-columns:1fr; gap:clamp(14px,2.6vh,28px)}
+  @media(min-width:820px){.cols.two{grid-template-columns:1fr 1fr; gap:clamp(28px,4.5vw,64px)}}
+  .foot{position:absolute; left:clamp(30px,6.5vw,110px); bottom:clamp(18px,3vh,34px);
+        right:clamp(30px,6.5vw,110px); display:flex; justify-content:space-between;
+        align-items:baseline; font-size:11px; color:var(--muted); letter-spacing:.05em}
+  .num{font-family:var(--mono); font-variant-numeric:tabular-nums}
+
+  .lit{display:flex; flex-direction:column; gap:clamp(10px,1.9vh,20px); max-width:70ch}
+  .lit .row{display:grid; grid-template-columns:1fr; gap:3px}
+  @media(min-width:900px){.lit .row{grid-template-columns:minmax(0,0.92fr) minmax(0,1.08fr);
+    gap:clamp(16px,2.6vw,34px); align-items:baseline}}
+  .paper{font-size:clamp(13px,1.6vw,19px); color:var(--ink); font-weight:640; line-height:1.3}
+  .paper em{font-weight:400; color:var(--muted); font-style:normal; font-size:.86em;
+            display:block; margin-top:2px}
+  .impact{font-size:clamp(12.5px,1.5vw,18px); color:var(--ink-2); line-height:1.35;
+          padding-left:16px; border-left:2px solid var(--accent)}
+
+  .map{display:flex; flex-direction:column; gap:clamp(7px,1.4vh,15px); max-width:72ch}
+  .map .row{display:grid; grid-template-columns:1fr; gap:2px}
+  @media(min-width:860px){.map .row{grid-template-columns:1.25fr auto 1fr;
+    gap:clamp(12px,2vw,26px); align-items:baseline}}
+  .dec{font-size:clamp(13px,1.55vw,19px); color:var(--ink); font-weight:640; line-height:1.3}
+  .arw{color:var(--accent); font-family:var(--mono); font-size:.9em; display:none}
+  @media(min-width:860px){.arw{display:block}}
+  .src{font-size:clamp(12px,1.45vw,17px); color:var(--muted); line-height:1.3}
+
+  .stack{display:flex; flex-direction:column; gap:8px; max-width:640px}
+  .lyr{display:grid; grid-template-columns:minmax(90px,1fr) 2fr; gap:14px;
+       align-items:center; border:1px solid var(--rule); padding:11px 16px;
+       font-size:clamp(12px,1.5vw,17px)}
+  .lyr b{font-family:var(--mono); font-size:.9em; color:var(--ink)}
+  .lyr span{color:var(--muted); font-size:.88em}
+  .lyr.hero{border-color:var(--accent); background:color-mix(in srgb,var(--accent) 9%,transparent)}
+  .lyr.hero b{color:var(--accent-2)}
+
+  .chart{display:flex; gap:clamp(20px,4.5vw,64px); align-items:flex-end;
+         height:clamp(170px,32vh,290px); margin:8px 0 0}
+  .grp{flex:1; display:flex; flex-direction:column; align-items:center; gap:10px; height:100%}
+  .bars{flex:1; display:flex; gap:clamp(6px,1vw,14px); align-items:flex-end; width:100%;
+        justify-content:center; position:relative}
+  .bar{width:clamp(26px,5vw,64px); position:relative; border-radius:2px 2px 0 0}
+  .bar span{position:absolute; top:-22px; left:50%; transform:translateX(-50%);
+            font-family:var(--mono); font-size:clamp(10px,1.2vw,14px); color:var(--ink-2)}
+  .glab{font-size:clamp(11px,1.35vw,16px); color:var(--muted); text-align:center; line-height:1.3}
+  .budget{position:absolute; left:0; right:0; border-top:2px dashed var(--ink); z-index:2}
+  .budget em{position:absolute; right:0; top:-20px; font-style:normal;
+             font-family:var(--mono); font-size:11px; color:var(--ink)}
+  .legend{display:flex; gap:18px; flex-wrap:wrap; margin:20px 0 0;
+          font-size:clamp(11px,1.3vw,15px); color:var(--ink-2)}
+  .legend i{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:7px}
+
+  #notes{position:fixed; left:0; right:0; bottom:0; max-height:46vh; overflow-y:auto;
+    background:var(--ground); border-top:2px solid var(--accent);
+    padding:20px clamp(30px,6.5vw,110px) 26px; display:none; z-index:40;
+    font-family:var(--serif); font-size:15px; line-height:1.55; color:var(--ink-2)}
+  #notes.on{display:block}
+  #notes h4{font-family:var(--sans); font-size:10.5px; letter-spacing:.14em;
+            text-transform:uppercase; color:var(--accent); margin:0 0 10px; font-weight:700}
+  #notes p{margin:0 0 10px; max-width:78ch}
+  .hint{position:fixed; right:14px; top:12px; font-size:10.5px; color:var(--muted);
+        letter-spacing:.06em; z-index:45}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+
+  /* Print / PDF: every slide becomes one landscape page, so the deck can be
+     submitted as a file and works with no network and no login. */
+  @media print{
+    @page{ size:A4 landscape; margin:0 }
+    html,body{ height:auto; overflow:visible; background:#fff }
+    :root{
+      --ground:#fff; --ink:#12161C; --ink-2:#3C4653; --muted:#6B7583;
+      --rule:#DFE4EA; --accent:#B4531B; --accent-2:#8E4015;
+      --s1:#4a3aa7; --s2:#eb6834;
+    }
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important }
+    #prog,.hint,#notes{ display:none !important }
+    .slide{
+      display:flex !important; position:relative; inset:auto;
+      width:100%; height:100vh; page-break-after:always; break-after:page;
+      animation:none !important;
+    }
+    .slide:last-of-type{ page-break-after:auto; break-after:auto }
+  }
+
+  .refs{display:grid; grid-template-columns:1fr; gap:6px clamp(20px,3.5vw,48px); max-width:100%}
+  @media(min-width:840px){.refs{grid-template-columns:1fr 1fr}}
+  .refs ol{margin:0; padding-left:2.1em; display:flex; flex-direction:column; gap:clamp(3px,.6vh,7px)}
+  .refs li{display:list-item; font-size:clamp(9.5px,1.02vw,13px); line-height:1.3;
+           color:var(--ink-2); list-style:decimal}
+  .refs li::marker{color:var(--accent); font-family:var(--mono); font-size:.85em}
+</style>
+
+<div id="prog"></div>
+<div class="hint">← → navigate · N notes</div>
+
+<!-- 1 -->
+<section class="slide on">
+  <p class="eyebrow">Review 1</p>
+  <h1>Predictive Bandwidth Allocation for Starlink Access Links</h1>
+  <p class="sub">A regime-conditioned calibration layer for risk-aware throughput forecasting over LEO satellite networks.</p>
+  <div class="foot"><span>Mayan Sharma</span><span class="num">01 / 17</span></div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <p class="eyebrow">Domain</p>
+  <h2>A link that is non-stationary by construction</h2>
+  <div class="cols two">
+    <ul>
+      <li><span class="idx">550</span><span><b>km orbit</b>, not 36,000 like geostationary</span></li>
+      <li><span class="idx">7.5</span><span><b>km/s</b>, so a satellite is usable for minutes</span></li>
+      <li><span class="idx">~30</span><span><b>ms latency</b>, down from 600 plus</span></li>
+    </ul>
+    <p class="kicker">Speed is bought with constant handover. That trade is the entire domain.</p>
+  </div>
+  <div class="foot"><span>Domain and problem</span><span class="num">02 / 17</span></div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <p class="eyebrow">Domain</p>
+  <h2>Five mechanisms drive the variation</h2>
+  <ul>
+    <li><span class="idx">1</span><span><b>15-second scheduling cycle</b></span></li>
+    <li><span class="idx">2</span><span><b>Satellite handovers</b> at each boundary</span></li>
+    <li><span class="idx">3</span><span><b>Serving geometry</b>: elevation and distance</span></li>
+    <li><span class="idx">4</span><span><b>Candidate density</b>: visible satellites</span></li>
+    <li><span class="idx">5</span><span><b>Weather and obstruction</b></span></li>
+  </ul>
+  <p class="kicker">Each one becomes a feature, and later a regime axis.</p>
+  <div class="foot"><span>Domain and problem</span><span class="num">03 / 17</span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <p class="eyebrow">Problem statement</p>
+  <h2>Six industry needs. We address three.</h2>
+  <ul>
+    <li><span class="idx">1</span><span>Predict <b>throughput degradation</b></span></li>
+    <li><span class="idx">2</span><span>Detect <b>congestion</b> before users are affected</span></li>
+    <li><span class="idx">3</span><span>Optimise <b>bandwidth allocation</b> automatically</span></li>
+  </ul>
+  <p class="kicker">Chosen because they chain into one system, not three disconnected models.</p>
+  <div class="foot"><span>Domain and problem</span><span class="num">04 / 17</span></div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <p class="eyebrow">Objectives</p>
+  <h2>O1 to O4</h2>
+  <ul>
+    <li><span class="idx">O1</span><span>Analyse performance across <b>time and location</b></span></li>
+    <li><span class="idx">O2</span><span>Study <b>obstruction and satellite parameters</b></span></li>
+    <li><span class="idx">O3</span><span>Develop and evaluate <b>ML models</b> for prediction</span></li>
+    <li><span class="idx">O4</span><span>Design a <b>predictive framework</b> for link quality</span></li>
+  </ul>
+  <div class="foot"><span>Domain and problem</span><span class="num">05 / 17</span></div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <p class="eyebrow">Literature · phase one · measurement 2022 to 2024</p>
+  <h2>What the measurement work gives us</h2>
+  <div class="lit">
+    <div class="row">
+      <div class="paper">Tanveer et al., CoNEXT 2023<em>Making Sense of Constellations</em></div>
+      <div class="impact">Established the <b>15-second scheduling cycle</b>. Our first regime axis exists because of this paper</div>
+    </div>
+    <div class="row">
+      <div class="paper">Mohan et al., WWW 2024<em>A Multifaceted Look at Starlink Performance</em></div>
+      <div class="impact">Performance is <b>condition-dependent</b> across geography and weather. Evidence that one global model is the wrong shape</div>
+    </div>
+    <div class="row">
+      <div class="paper">Garcia et al., LEO-NET 2023<em>Multi-timescale Evaluation</em></div>
+      <div class="impact">Structure exists at <b>several timescales at once</b>, justifying an explicit periodic component in the model</div>
+    </div>
+    <div class="row">
+      <div class="paper">Michel et al., IMC 2022<em>A First Look at Starlink Performance</em></div>
+      <div class="impact">Baseline characterisation and the first evidence of <b>periodic variation</b> worth modelling</div>
+    </div>
+  </div>
+  <div class="foot"><span>Literature review · 8 papers in this group</span><span class="num">06 / 17</span></div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <p class="eyebrow">Literature · phase two · prediction 2023 to 2026</p>
+  <h2>What the prediction work gives us</h2>
+  <div class="lit">
+    <div class="row">
+      <div class="paper">Liu et al., CoNEXT 2025, <b>base paper</b><em>StarNet: Vivisecting Starlink Throughput</em></div>
+      <div class="impact">Our <b>forecasting backbone</b>. Its serving-satellite resolution gives us the elevation, distance and candidate-count regime axes</div>
+    </div>
+    <div class="row">
+      <div class="paper">Benghe et al., SIGMETRICS 2026<em>Horizon</em></div>
+      <div class="impact">Throughput and latency are non-stationary on <b>different timescales</b>. This is why our splits must be temporal, never random</div>
+    </div>
+    <div class="row">
+      <div class="paper">Casparsen et al., 2026<em>E2E Latency over LEO</em></div>
+      <div class="impact">A <b>phase-recovery procedure</b>, so we recover the scheduling reference from data instead of hardcoding it</div>
+    </div>
+    <div class="row">
+      <div class="paper">DLinear · PatchTST · TimesNet<em>AAAI 2023 · arXiv 2022 · arXiv 2022</em></div>
+      <div class="impact">Baselines that test whether the backbone's complexity is <b>actually earned</b></div>
+    </div>
+  </div>
+  <div class="foot"><span>Literature review · 5 papers in this group</span><span class="num">07 / 17</span></div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <p class="eyebrow">Literature · phase three · risk-aware 2026</p>
+  <h2>What the risk work gives us, and where it stops</h2>
+  <div class="lit">
+    <div class="row">
+      <div class="paper">Xie et al., 2026, <b>direct baseline</b><em>BG-CFQS: Risk-Aware Safe Throughput Forecasting</em></div>
+      <div class="impact">The method we compare against, <b>and the evidence it fails conditionally.</b> Their own numbers are our motivation</div>
+    </div>
+    <div class="row">
+      <div class="paper">Vovk, Gammerman, Shafer<em>Algorithmic Learning in a Random World</em></div>
+      <div class="impact">Conformal prediction, our calibration machinery. Its guarantee is <b>marginal</b>, and that word is precisely the gap</div>
+    </div>
+    <div class="row">
+      <div class="paper">Yin et al., SIGCOMM 2015<em>RobustMPC</em></div>
+      <div class="impact">A <b>conservative estimate beats a point estimate</b> for a downstream decision. The precedent for bounding at all</div>
+    </div>
+  </div>
+  <p class="kicker">The frontier has taken one step: control risk globally.</p>
+  <div class="foot"><span>Literature review · 24 papers total</span><span class="num">08 / 17</span></div>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <p class="eyebrow">Literature · synthesis</p>
+  <h2>Every design decision traces to a paper</h2>
+  <div class="map">
+    <div class="row"><div class="dec">15 s phase as a regime axis</div><div class="arw">&lt;--</div><div class="src">Tanveer et al., 2023</div></div>
+    <div class="row"><div class="dec">Phase <b>recovered</b>, not assumed</div><div class="arw">&lt;--</div><div class="src">Casparsen et al., 2026</div></div>
+    <div class="row"><div class="dec">Elevation, distance, candidate axes</div><div class="arw">&lt;--</div><div class="src">Liu et al., 2025 (StarNet)</div></div>
+    <div class="row"><div class="dec">GRU backbone with periodical embedding</div><div class="arw">&lt;--</div><div class="src">Liu et al., 2025 (StarNet)</div></div>
+    <div class="row"><div class="dec">Temporal splits, never random</div><div class="arw">&lt;--</div><div class="src">Benghe et al., 2026 (Horizon)</div></div>
+    <div class="row"><div class="dec">Bound instead of point forecast</div><div class="arw">&lt;--</div><div class="src">Yin et al., 2015</div></div>
+    <div class="row"><div class="dec">Conformal calibration</div><div class="arw">&lt;--</div><div class="src">Vovk et al.</div></div>
+    <div class="row"><div class="dec"><b>The gap we attack</b></div><div class="arw">&lt;--</div><div class="src">Xie et al., 2026 (BG-CFQS)</div></div>
+    <div class="row"><div class="dec">Primary dataset</div><div class="arw">&lt;--</div><div class="src">Laniewski et al., 2024 (WetLinks)</div></div>
+  </div>
+  <div class="foot"><span>Nothing here is a design choice made for convenience</span><span class="num">09 / 17</span></div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <p class="eyebrow">The gap</p>
+  <h2>Risk held on average. Lost where it matters.</h2>
+  <div class="chart">
+    <div class="grp">
+      <div class="bars">
+        <div class="budget" style="bottom:35%"><em>budget 0.35</em></div>
+        <div class="bar" style="height:51%; background:var(--s1)"><span>0.51</span></div>
+        <div class="bar" style="height:35%; background:var(--s2)"><span>0.35</span></div>
+      </div>
+      <div class="glab">All samples</div>
+    </div>
+    <div class="grp">
+      <div class="bars">
+        <div class="budget" style="bottom:35%"></div>
+        <div class="bar" style="height:78%; background:var(--s1)"><span>0.78</span></div>
+        <div class="bar" style="height:68%; background:var(--s2)"><span>0.65 to 0.71</span></div>
+      </div>
+      <div class="glab">Lowest 30%<br>of capacity</div>
+    </div>
+    <div class="grp">
+      <div class="bars">
+        <div class="budget" style="bottom:35%"></div>
+        <div class="bar" style="height:88%; background:var(--s1)"><span>0.87</span></div>
+        <div class="bar" style="height:85%; background:var(--s2)"><span>0.83 to 0.86</span></div>
+      </div>
+      <div class="glab">Lowest 10%<br>of capacity</div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--s1)"></i>Point forecast</span>
+    <span><i style="background:var(--s2)"></i>Global-quantile baseline</span>
+  </div>
+  <div class="foot"><span>Their own published numbers</span><span class="num">10 / 17</span></div>
+</section>
+
+<!-- 11 -->
+<section class="slide">
+  <p class="eyebrow">Proposed method</p>
+  <h2>Calibrate <em>inside</em> each operating regime</h2>
+  <div class="cols two">
+    <ul>
+      <li><span class="idx">1</span><span><b>15 s phase</b>: opening, middle, closing</span></li>
+      <li><span class="idx">2</span><span><b>Elevation</b>: 25 to 45, 45 to 60, above 60&deg;</span></li>
+      <li><span class="idx">3</span><span><b>Distance</b>: below or above 645 km</span></li>
+      <li><span class="idx">4</span><span><b>Candidate count</b>: terciles</span></li>
+    </ul>
+    <p class="kicker">Covariates the terminal already has at prediction time. Never the future.</p>
+  </div>
+  <div class="foot"><span>Methodology</span><span class="num">11 / 17</span></div>
+</section>
+
+<!-- 12 -->
+<section class="slide">
+  <p class="eyebrow">Methodology</p>
+  <h2>The procedure</h2>
+  <ul>
+    <li><span class="idx">1</span><span>Split <b>temporally</b>: train, calibration, test</span></li>
+    <li><span class="idx">2</span><span>Fit the forecaster on <b>train only</b></span></li>
+    <li><span class="idx">3</span><span>Residuals on calibration, <b>grouped by regime</b></span></li>
+    <li><span class="idx">4</span><span>Select each regime's <b>operating point</b></span></li>
+    <li><span class="idx">5</span><span>At test time, assign regime and apply</span></li>
+  </ul>
+  <p class="kicker">Sparse regimes climb a coarsening hierarchy, and we report how much mass falls back.</p>
+  <div class="foot"><span>Methodology</span><span class="num">12 / 17</span></div>
+</section>
+
+<!-- 13 -->
+<section class="slide">
+  <p class="eyebrow">System design</p>
+  <h2>Five layers, strictly downward</h2>
+  <div class="stack">
+    <div class="lyr"><b>ingest/</b><span>raw sources to normalised frame</span></div>
+    <div class="lyr"><b>state/</b><span>frame to features and regime id</span></div>
+    <div class="lyr"><b>forecast/</b><span>features to point prediction</span></div>
+    <div class="lyr hero"><b>calibrate/</b><span>prediction to safe bound · our contribution</span></div>
+    <div class="lyr"><b>decide/</b><span>bound to allocation and alerts</span></div>
+  </div>
+  <div class="foot"><span>System design</span><span class="num">13 / 17</span></div>
+</section>
+
+<!-- 14 -->
+<section class="slide">
+  <p class="eyebrow">System design</p>
+  <h2>Congestion is derived, not modelled</h2>
+  <p class="sub">The calibrated bound falling below the committed allocation for W sustained slots <em>is</em> the congestion signal.</p>
+  <p class="kicker">No second classifier. The alert and the allocator can never disagree about when the link is in trouble.</p>
+  <div class="foot"><span>System design</span><span class="num">14 / 17</span></div>
+</section>
+
+<!-- 15 -->
+<section class="slide">
+  <p class="eyebrow">Evaluation</p>
+  <h2>Success and failure, defined in advance</h2>
+  <div class="cols two">
+    <ul>
+      <li><span class="idx">Y</span><span>Global rate <b>at or below budget</b></span></li>
+      <li><span class="idx">Y</span><span>Conditional rate on P30 and P10 <b>well below 0.65 to 0.86</b></span></li>
+      <li><span class="idx">Y</span><span>At <b>comparable MAE</b></span></li>
+      <li><span class="idx">N</span><span>If accuracy collapses: <b>negative result, reported</b></span></li>
+    </ul>
+    <p class="kicker">Pre-specifying failure is what makes the success claim worth anything.</p>
+  </div>
+  <div class="foot"><span>Evaluation protocol</span><span class="num">15 / 17</span></div>
+</section>
+
+
+<!-- 16 REFERENCES -->
+<section class="slide">
+  <p class="eyebrow">References</p>
+  <h2>24 papers</h2>
+  <div class="refs">
+    <ol>
+      <li>Michel et al. A First Look at Starlink Performance. IMC 2022.</li>
+      <li>Kassem et al. A Browser-side View of Starlink Connectivity. IMC 2022.</li>
+      <li>Ma et al. Network Characteristics of LEO Satellite Constellations. INFOCOM 2023.</li>
+      <li>Mohan et al. A Multifaceted Look at Starlink Performance. WWW 2024.</li>
+      <li>Garcia et al. Multi-timescale Evaluation of Starlink Throughput. LEO-NET 2023.</li>
+      <li>Tanveer et al. Making Sense of Constellations. CoNEXT Companion 2023.</li>
+      <li>Izhikevich et al. Democratizing LEO Satellite Network Measurement. SIGMETRICS 2024.</li>
+      <li>Pan, Zhao, Cai. Measuring a Low-Earth-Orbit Satellite Network. 2023.</li>
+      <li>Laniewski et al. WetLinks. TMA 2024.</li>
+      <li>Lanfer et al. Weather-Based Link Prediction for LEO Networks. IFIP Networking 2024.</li>
+      <li>Zhao, Pan. LENS: A LEO Satellite Network Measurement Dataset. MMSys 2024.</li>
+      <li>Liu et al. Vivisecting Starlink Throughput (StarNet). CoNEXT 2025.</li>
+    </ol>
+    <ol start="13">
+      <li>Tiwari et al. T3P: Demystifying LEO Satellite Broadband. arXiv 2023.</li>
+      <li>Benghe et al. Horizon: Predicting Global Starlink Performance. SIGMETRICS 2026.</li>
+      <li>Casparsen et al. E2E Latency over LEO Satellite Networks. arXiv 2026.</li>
+      <li>Narayanan et al. Lumos5G. IMC 2020.</li>
+      <li>Zeng et al. Are Transformers Effective for Time Series Forecasting? AAAI 2023.</li>
+      <li>Nie et al. A Time Series is Worth 64 Words (PatchTST). arXiv 2022.</li>
+      <li>Wu et al. TimesNet. arXiv 2022.</li>
+      <li>Chen, Guestrin. XGBoost. KDD 2016.</li>
+      <li>Xie et al. Risk-Aware Safe Throughput Forecasting (BG-CFQS). arXiv 2026.</li>
+      <li>Koenker, Hallock. Quantile Regression. Cambridge Univ. Press.</li>
+      <li>Yin et al. A Control-Theoretic Approach for DASH (RobustMPC). SIGCOMM 2015.</li>
+      <li>Vovk, Gammerman, Shafer. Algorithmic Learning in a Random World. Springer.</li>
+    </ol>
+  </div>
+  <div class="foot"><span>20 of 24 published 2020 or later</span><span class="num">16 / 17</span></div>
+</section>
+
+<!-- 17 -->
+<section class="slide">
+  <p class="eyebrow">Summary</p>
+  <h2>One sentence</h2>
+  <p class="sub">A regime-conditioned calibration layer that turns a point throughput forecast into a safe bound whose risk is controlled <em>within</em> each operating regime, not merely on average.</p>
+  <p class="kicker">Thank you. Questions?</p>
+  <div class="foot"><span>Mayan Sharma</span><span class="num">17 / 17</span></div>
+</section>
+
+<div id="notes"><h4>Speaker notes</h4><div id="ntext"></div></div>
+
+<script>
+const NOTES = {
+ 0:"<p>Title slide. Introduce yourself and the project in one line, then move on quickly.</p>",
+ 1:"<p>\"Starlink satellites orbit at about 550 kilometres, not 36,000 like traditional geostationary satellites. That is a 65-fold reduction in distance, and it is why latency drops from around 600 milliseconds to around 30. But the satellites are moving at 7.5 kilometres per second, so any one of them is only usable for a few minutes before your terminal has to be handed to another. The link is fast, and it is non-stationary by construction. That trade is the entire domain.\"</p>",
+ 2:"<p>\"Five mechanisms drive the variation, and each one is a feature we use. Starlink reschedules every 15 seconds. At those boundaries the serving satellite can change, and you see a throughput dip and a latency spike. Throughput depends on the serving satellite's geometry: it rises with elevation and plateaus above 60 degrees, and falls off past about 645 kilometres. More visible satellites means more scheduling freedom, and throughput rises about 26 percent going from 15 to 45 candidates. And finally weather and physical obstruction.\"</p><p><b>Key line:</b> \"The property that matters is that the prediction error is not just noisy. It is noisier in some conditions than others, and specifically noisiest when capacity is already lowest.\"</p>",
+ 3:"<p>\"We were given six industry needs and we address three, chosen because they chain into one system rather than being three disconnected models. And the important design decision is that congestion detection is <i>not</i> a separate classifier. It is derived from the same calibrated bound.\"</p>",
+ 4:"<p>Read these quickly, one line each. They map onto the layers: O1 and O2 come out of the feature layer and the ablation, O3 is the backbone, O4 is the calibration and allocation layers.</p>",
+ 5:"<p><b>Frame the whole literature section first:</b> \"The field has moved through three phases: measurement, then prediction, then risk-aware prediction. I will take each in turn, and for each paper say what it actually gives our design.\"</p><p>\"From 2022 to 2024 the work was measurement. Tanveer and colleagues reverse-engineered the scheduling behaviour and established the 15-second cycle. That single finding is why our first regime axis exists at all. Mohan's multi-vantage study showed performance is condition-dependent across geography and weather, which is direct evidence that one global model is the wrong shape for this problem. Garcia showed structure at several timescales at once. And Michel gave the first systematic characterisation.\"</p><p>There are eight papers in this group. These four are the ones that changed our design.</p>",
+ 6:"<p>\"From 2023 the field moved to prediction. StarNet is our base paper. It gives us the forecasting backbone, a GRU sequence-to-sequence model with a periodical embedding and attention. But just as importantly, its satellite-resolution tool is what makes elevation, distance and candidate count observable at all. Three of our four regime axes come from that.\"</p><p>\"Horizon found that latency prediction is best with a two-month training window while throughput keeps improving out to eleven months. Those two signals are non-stationary on different timescales, and that is precisely why our splits have to be temporal rather than random.\"</p><p>\"Casparsen gives us a phase-recovery procedure, so we recover the scheduling reference from the data rather than hardcoding it. And DLinear, PatchTST and TimesNet are baselines that test whether the backbone's complexity is actually earned.\"</p>",
+ 7:"<p>\"And in 2026 the field became risk-aware. BG-CFQS is our direct baseline, but it is also the source of our motivation, because their own conditional analysis is the evidence that their approach fails where it matters. I will show that on the next slide.\"</p><p>\"Conformal prediction gives us the calibration machinery. And the important word in its guarantee is <i>marginal</i>. It holds on average over the whole distribution and says nothing about any subgroup. That word is exactly the gap we are attacking.\"</p><p>\"RobustMPC, from video streaming, is the precedent for the whole framing: a conservative estimate beats a point estimate when something downstream has to act on it.\"</p>",
+ 8:"<p><b>This slide answers 'why these choices and not others'.</b></p><p>\"Before I show the gap, I want to make one thing explicit. Every design decision in this project traces back to a specific paper. None of it is convenience. The phase axis comes from Tanveer. Recovering the phase rather than assuming it comes from Casparsen. Three of our four regime axes exist because StarNet's tool makes satellite geometry observable. Temporal splits come from Horizon's finding. The decision to produce a bound at all comes from RobustMPC. The calibration machinery is conformal prediction. And the gap we attack is BG-CFQS's own reported result.\"</p><p>If asked \"why these four axes?\", this is the slide to point back at.</p>",
+ 9:"<p><b>SLOW DOWN. This slide earns the marks.</b></p><p>\"The baseline sets a budget of 0.35, meaning they will accept overestimating 35 percent of the time, and they hit it: 0.349 globally. But look what happens when you split by how much capacity the link actually had. On the lowest 30 percent of samples their overestimation rate is 0.65 to 0.71. On the lowest 10 percent, it is 0.83 to 0.86.\"</p><p>\"So risk is controlled on average, and lost precisely in the low-capacity regime, which is exactly where over-allocating actually drops user sessions. When the link is healthy, being wrong is cheap. When the link is struggling, being wrong is expensive, and that is exactly where the guarantee stops holding.\"</p><p>\"These are not our numbers criticising them. These are their own published numbers.\"</p>",
+ 10:"<p>\"Our contribution is a regime-conditioned calibration layer. Instead of one global operating point, we estimate a separate one inside each operating regime.\"</p><p>\"The reason this works is mathematical, not empirical. A conformal bound guarantees coverage <i>marginally</i>, averaged over everything. If residuals are wider in one condition than another, the single offset that hits the budget on average sits too high in the wide condition and too low in the narrow one. Condition on the regime, and each gets an offset sized for its own residual spread.\"</p>",
+ 11:"<p>\"Split temporally, never randomly. Horizon is the evidence for that. Fit the forecaster on train only. Compute residuals on a separate calibration split, grouped by regime. Select each regime's operating point. Apply it at test time.\"</p><p>\"One practical problem: the full cross-product of regimes is too sparse to calibrate directly. So we define a coarsening hierarchy, and we <i>report</i> how much mass fell back, because if most of it lands on global then our layer is not doing anything and the ablation has to say so.\"</p>",
+ 12:"<p>\"Five layers, and each only talks to the one below it. Ingest normalises raw sources with no ML. State turns that into features and regime labels with no model. Forecast produces a point prediction. Calibrate turns it into a safe bound, and that is our layer. Decide turns the bound into allocations and alerts, again with no ML.\"</p><p>\"The separation is what makes it testable, and what lets us ablate the calibration layer without touching anything else.\"</p>",
+ 13:"<p>Reinforce the design decision from slide 4. A second trained classifier would have its own errors and its own calibration, and no guarantee of agreeing with the allocator.</p>",
+ 14:"<p>\"We have defined in advance what counts as success, and also what counts as failure. If the bounds become so conservative that accuracy collapses, that is a negative result and we report it as one rather than only showing the risk metrics.\"</p>",
+ 15:"<p>Do not read this slide out. It is here so the reference count is visible and so anyone can check a citation during questions. Say: \"These are the twenty-four papers, twenty of them from 2020 onward.\" Then move on.</p>",
+ 16:"<p>Close on the one-sentence version, then stop talking and take questions. Do not add new material here.</p>"
+};
+const slides=[...document.querySelectorAll('.slide')];
+let i=0, notesOn=false;
+const notes=document.getElementById('notes'), ntext=document.getElementById('ntext');
+function show(n){
+  i=Math.max(0,Math.min(slides.length-1,n));
+  slides.forEach((s,k)=>s.classList.toggle('on',k===i));
+  document.getElementById('prog').style.width=((i+1)/slides.length*100)+'%';
+  ntext.innerHTML=NOTES[i]||'<p>.</p>';
+}
+function toggleNotes(){notesOn=!notesOn; notes.classList.toggle('on',notesOn);}
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();show(i+1)}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();show(i-1)}
+  else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+  else if(e.key==='n'||e.key==='N'){toggleNotes()}
+});
+addEventListener('click',e=>{if(!notes.contains(e.target)) show(i + (e.clientX < innerWidth*0.28 ? -1 : 1));});
+show(0);
+</script>
