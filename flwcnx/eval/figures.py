@@ -33,9 +33,17 @@ SERIES_COLORS: dict[str, str] = {
     "bgcfqs": "#eb6834",
     "regime_conformal": "#1baf7a",
     "regime_bgcfqs": "#eb6834",
+    # The adaptive variants deliberately share their static counterpart's
+    # colour and are separated by hatch instead. Colour encodes what the bound
+    # conditions on (nothing / regime), hatch encodes whether it adapts online.
+    # Two visual channels for the two independent mechanisms, which also keeps
+    # the figure inside the four slot palette that was actually validated.
     "adaptive_global_conformal": "#2a78d6",
     "adaptive_regime_conformal": "#1baf7a",
 }
+
+#: Methods drawn with a hatch. See SERIES_COLORS for why.
+ADAPTIVE_HATCH = "///"
 FALLBACK_ORDER = ("#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7")
 
 TEXT_PRIMARY = "#0b0b0b"
@@ -101,21 +109,29 @@ def conditional_over_rate(
     methods = list(rates)
     n = len(methods)
 
-    fig, ax = plt.subplots(figsize=(8.0, 4.4))
+    fig, ax = plt.subplots(figsize=(9.6, 4.4))
     positions = np.arange(len(slices))
     # A 2px surface gap between adjacent bars, expressed as a width fraction.
     width = 0.78 / max(n, 1)
+
+    # Value labels on adjacent bars of similar height overlap, and with five
+    # methods that is most of them. Alternating the label height by bar index
+    # separates them without moving any bar or shrinking the type.
+    label_lift = (0.012, 0.055)
 
     for index, method in enumerate(methods):
         offset = (index - (n - 1) / 2) * width
         values = [rates[method].get(s, np.nan) for s in slices]
         bars = ax.bar(positions + offset, values, width * 0.94,
-                      label=method.replace("_", " "), color=_color(method, index), zorder=3)
+                      label=method.replace("_", " "), color=_color(method, index),
+                      hatch=ADAPTIVE_HATCH if method.startswith("adaptive_") else None,
+                      edgecolor=SURFACE, linewidth=0.0, zorder=3)
         for bar, value in zip(bars, values, strict=True):
             if not np.isfinite(value):
                 continue
-            ax.text(bar.get_x() + bar.get_width() / 2, value + 0.012, f"{value:.3f}",
-                    ha="center", va="bottom", fontsize=8, color=TEXT_SECONDARY)
+            ax.text(bar.get_x() + bar.get_width() / 2, value + label_lift[index % 2],
+                    f"{value:.3f}", ha="center", va="bottom", fontsize=8,
+                    color=TEXT_SECONDARY)
 
     # The budget label gets its own margin past the last group, and the line
     # stops short of it. Anywhere inside the plot the label eventually collides
