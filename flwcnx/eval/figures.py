@@ -33,6 +33,8 @@ SERIES_COLORS: dict[str, str] = {
     "bgcfqs": "#eb6834",
     "regime_conformal": "#1baf7a",
     "regime_bgcfqs": "#eb6834",
+    "adaptive_global_conformal": "#2a78d6",
+    "adaptive_regime_conformal": "#1baf7a",
 }
 FALLBACK_ORDER = ("#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7")
 
@@ -312,4 +314,52 @@ def admission_comparison(tables: dict[str, pd.DataFrame], path: str | Path,
     _style(ax, ylabel="mean dropped sessions", title=title)
     ax.legend(frameon=False, fontsize=9, labelcolor=TEXT_SECONDARY, ncols=min(n, 4),
               loc="upper left", bbox_to_anchor=(0, -0.14))
+    return _save(fig, path)
+
+
+def adaptation_trace(trace: pd.DataFrame, epsilon: float, path: str | Path,
+                     *, title: str = "Online recalibration",
+                     max_regimes: int = 6) -> Path:
+    """The alpha path per regime, and the running realised risk rate.
+
+    Two panels. The top one answers "did it converge or oscillate", which is
+    the first question anyone asks about an online method. The bottom one
+    answers "did it converge to the right place", which is the only one that
+    decides whether the method worked.
+
+    Expects the output of `AdaptiveTrace.to_frame`: alpha, offset, regime,
+    risk_event, fell_back.
+    """
+    if trace.empty:
+        raise ValueError("adaptation_trace needs a non-empty trace")
+
+    fig, (top, bottom) = plt.subplots(2, 1, figsize=(8.4, 6.0), sharex=True,
+                                      height_ratios=[1.0, 0.85])
+
+    # Busiest regimes only. A regime seen twice contributes a two point line
+    # that reads as noise next to the ones carrying the traffic.
+    counts = trace["regime"].value_counts()
+    shown = list(counts.index[:max_regimes])
+    for index, regime in enumerate(shown):
+        part = trace[trace["regime"] == regime]
+        top.plot(part.index.to_numpy(), part["alpha"].to_numpy(), linewidth=1.2,
+                 color=FALLBACK_ORDER[index % len(FALLBACK_ORDER)],
+                 label=f"{regime} (n={counts[regime]})", zorder=3)
+    top.axhline(epsilon, color=TEXT_PRIMARY, linewidth=1.3, linestyle="--", zorder=4)
+    top.text(len(trace) * 1.005, epsilon, f"$\\epsilon$ = {epsilon:.2f}", fontsize=9,
+             color=TEXT_PRIMARY, ha="left", va="center")
+    _style(top, ylabel="$\\alpha$ (per regime)", title=title)
+    top.legend(frameon=False, fontsize=8, labelcolor=TEXT_SECONDARY,
+               ncols=min(len(shown), 3), loc="upper left")
+
+    # Running mean of the risk indicator: the quantity the update rule steers.
+    risk = trace["risk_event"].to_numpy(dtype=float)
+    running = np.cumsum(risk) / np.arange(1, risk.size + 1)
+    bottom.plot(np.arange(risk.size), running, linewidth=1.4,
+                color=SERIES_COLORS["adaptive_regime_conformal"], zorder=3)
+    bottom.axhline(epsilon, color=TEXT_PRIMARY, linewidth=1.3, linestyle="--", zorder=4)
+    _style(bottom, ylabel="realised risk rate", xlabel="test decision index")
+    bottom.set_ylim(0, max(1.0, float(np.nanmax(running)) * 1.15))
+
+    fig.align_ylabels([top, bottom])
     return _save(fig, path)

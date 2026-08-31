@@ -300,6 +300,15 @@ def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
         lower = online.transform_online(predicted_test, actual_test, test_set.regime)
         detail = online.summary()
         calibrator = None
+        # The per step alpha path is a result in its own right: it is the only
+        # thing that shows whether the adaptation converged or oscillated. Kept
+        # only at the run's headline epsilon, because one trace per grid cell
+        # would be a hundred-odd megabytes of CSV for one figure's worth of use.
+        if (online.trace is not None
+                and abs(calibration_config.epsilon - config.calibration.epsilon) < 1e-9):
+            result.regime_tables[f"trace_{key.replace('|', '_').replace('=', '')}"] = (
+                online.trace.to_frame()
+            )
     elif method == "point":
         # The uncalibrated forecaster, so the risk metrics have a floor to be
         # measured against. StarNet-point in the BG-CFQS table is this.

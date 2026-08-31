@@ -82,6 +82,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="attach reconstructed candidate count and best-in-view "
                              "geometry (seconds release only)")
     parser.add_argument("--backbone", default="starnet")
+    parser.add_argument("--methods", nargs="+", default=[
+        "point", "global_conformal", "regime_conformal", "regime_bgcfqs",
+        "adaptive_global_conformal", "adaptive_regime_conformal",
+    ])
     parser.add_argument("--lookback", type=int, default=None)
     parser.add_argument("--horizon", type=int, default=5)
     parser.add_argument("--stride", type=int, default=1)
@@ -131,8 +135,7 @@ def main(argv: list[str] | None = None) -> int:
 
     result = run_experiment(
         source, config, backbone=args.backbone,
-        calibration_methods=("point", "global_conformal", "regime_conformal",
-                             "regime_bgcfqs"),
+        calibration_methods=tuple(args.methods),
         epsilons=tuple(args.epsilons),
         granularities=tuple(args.granularities or
                             (SECONDS_GRANULARITIES if seconds else STATUS_GRANULARITIES)),
