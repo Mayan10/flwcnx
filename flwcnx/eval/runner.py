@@ -31,6 +31,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
 from flwcnx.calibrate.conformal import fit_conformal
 from flwcnx.calibrate.regime_cal import RegimeCalibrator, global_calibrator
 from flwcnx.config import (
@@ -61,7 +62,6 @@ from flwcnx.state.features import (
     make_sequences,
     standardize_sequences,
 )
-from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
 from flwcnx.state.regime import (
     RegimeAssigner,
     presets_for,
