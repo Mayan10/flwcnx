@@ -129,18 +129,49 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     reductions = frame["P10_reduction"]
+    achieved = frame["ours_OverRate"]
+    point_mae = frame["point_MAE"]
     lines += [
         "",
         "## Reading it",
         "",
-        f"P10 reduction ranges {reductions.min() * 100:.1f}% to "
-        f"{reductions.max() * 100:.1f}% across {len(frame)} backbones "
-        f"(mean {reductions.mean() * 100:.1f}%).",
+        "**Budget control is backbone independent.** Achieved global OverRate ranges "
+        f"{achieved.min():.4f} to {achieved.max():.4f} against a budget of "
+        f"{epsilon:.2f}, a spread of {(achieved.max() - achieved.min()) * 10000:.0f} "
+        "parts in ten thousand, across backbones whose own point MAE ranges "
+        f"{point_mae.min():.1f} to {point_mae.max():.1f} Mbps. The layer holds the "
+        "budget on top of a good forecaster and a bad one alike, which is what it "
+        "should do: the budget is a property of the calibration, and the forecaster "
+        "only decides how much capacity is left on the table to hold it.",
         "",
-        "The narrower that range, the more the layer is a property of the",
-        "calibration rather than of any one forecaster. A backbone whose point",
-        "forecast is already conservative has less headroom and should show a",
-        "smaller reduction; that is expected and is not evidence against the layer.",
+        "**Conditional improvement is not backbone independent.** P10 reduction "
+        f"ranges {reductions.min() * 100:.1f}% to {reductions.max() * 100:.1f}% "
+        f"(mean {reductions.mean() * 100:.1f}%), and the spread is not noise. The "
+        "two weakest forecasters show the smallest gains, for opposite reasons "
+        "worth separating:",
+        "",
+        "- `dlinear` over-predicts on essentially every decision in the lowest "
+        "decile. Conditioning cannot separate regimes when the forecast is wrong in "
+        "the same direction everywhere, and the static bound does not move it either.",
+        "- `patchtst` starts from an unusually low point P10 and so has less headroom "
+        "to begin with.",
+        "",
+        "So the honest statement is narrower than 'the layer is backbone "
+        "independent'. Budget control is. Conditional risk control depends on the "
+        "forecaster leaving a residual structure that the regime covariates can "
+        "actually see, and a forecaster that fails uniformly gives it nothing to "
+        "condition on.",
+        "",
+        "**The StarNet ablation half reproduces.** Liu et al. report that removing "
+        "the periodical embedding costs accuracy (RMSE 36.48 to 38.00). Here removing "
+        "it leaves MAE essentially unchanged (24.40 to 24.32, slightly *better*) "
+        "while making the risk metrics clearly worse: point OverRate 0.5048 to "
+        "0.5333 and point P10 0.8411 to 0.8906. Removing attention costs a little on "
+        "both. Two caveats before reading anything into this: the sequence here is "
+        "10/5 rather than their 30/5 because the iperf run forbids more, and this is "
+        "a different link on a different continent, so it is not their ablation "
+        "rerun. What it does suggest is that the embedding's contribution shows up in "
+        "the tail rather than in the mean, which a headline MAE table would miss.",
     ]
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text("\n".join(lines) + "\n")
