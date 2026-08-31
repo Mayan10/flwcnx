@@ -175,15 +175,21 @@ def epsilon_sweep(table: pd.DataFrame, path: str | Path,
     if column not in table.columns:
         raise KeyError(f"{column!r} not in table; columns are {list(table.columns)}")
 
-    fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.2))
+    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.6))
     for index, (method, part) in enumerate(table.groupby("method", sort=False)):
         part = part.sort_values("epsilon")
         color = _color(str(method), index)
         label = str(method).replace("_", " ")
-        axes[0].plot(part["epsilon"], part[column], marker="o", markersize=6,
-                     linewidth=2.0, color=color, label=label, zorder=3)
-        axes[1].plot(part["epsilon"], part["MAE"], marker="o", markersize=6,
-                     linewidth=2.0, color=color, label=label, zorder=3)
+        # Colour encodes what the bound conditions on, so the adaptive variants
+        # share their static counterpart's colour. On a line chart there is no
+        # hatch to separate them, so linestyle carries the second channel.
+        adaptive = str(method).startswith("adaptive_")
+        style = "--" if adaptive else "-"
+        marker = "s" if adaptive else "o"
+        for axis, values in ((axes[0], part[column]), (axes[1], part["MAE"])):
+            axis.plot(part["epsilon"], values, marker=marker, markersize=5.5,
+                      linewidth=2.0, linestyle=style, color=color, label=label,
+                      zorder=3)
 
     # y = x is the budget the method was asked to hold. Anything above the line
     # is a method failing its own contract on this slice.
@@ -198,8 +204,11 @@ def epsilon_sweep(table: pd.DataFrame, path: str | Path,
            title=title)
     _style(axes[1], xlabel="risk budget $\\epsilon$", ylabel="MAE (Mbps)",
            title="Accuracy cost")
-    axes[0].legend(frameon=False, fontsize=9, labelcolor=TEXT_SECONDARY, loc="upper left")
-    fig.tight_layout()
+    # Under the panels: with six methods any in-frame legend lands on a line.
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, frameon=False, fontsize=9, labelcolor=TEXT_SECONDARY,
+               ncols=3, loc="lower center", bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=(0, 0.12, 1, 1))
     return _save(fig, path)
 
 
@@ -222,16 +231,34 @@ def granularity_ablation(table: pd.DataFrame, path: str | Path,
     present += [a for a in table["axes"].unique() if a not in present]
     table = table.set_index("axes").reindex(present).reset_index()
 
-    fig, ax = plt.subplots(figsize=(8.0, 4.2))
+    fig, ax = plt.subplots(figsize=(10.2, 4.6))
     positions = np.arange(len(table))
     bars = ax.bar(positions, table[column], 0.62, color=_color("regime_conformal", 2), zorder=3)
     for bar, value in zip(bars, table[column], strict=True):
         if np.isfinite(value):
+            # Opaque background on the value label: the reference line added
+            # below passes through this band and would otherwise strike out the
+            # numbers of every bar sitting close to it.
             ax.text(bar.get_x() + bar.get_width() / 2, value + 0.008, f"{value:.3f}",
-                    ha="center", va="bottom", fontsize=9, color=TEXT_SECONDARY)
+                    ha="center", va="bottom", fontsize=9, color=TEXT_SECONDARY,
+                    zorder=6,
+                    bbox={"facecolor": SURFACE, "edgecolor": "none", "pad": 1.2})
+
+    # The bars keep a zero baseline, which is honest and also makes the whole
+    # ablation look flat. A reference line at the unconditioned rate is what
+    # makes the sign readable: a bar above it is an axis that conditions worse
+    # than not conditioning at all, and this figure has one.
+    unconditioned = table.loc[table["axes"] == "global", column]
+    if not unconditioned.empty and np.isfinite(unconditioned.iloc[0]):
+        level = float(unconditioned.iloc[0])
+        ax.hlines(level, -0.6, len(table) - 0.4, color=TEXT_PRIMARY, linewidth=1.3,
+                  linestyle="--", zorder=4)
+        ax.text(len(table) - 0.35, level, "  no conditioning", fontsize=9,
+                color=TEXT_PRIMARY, va="center", ha="left")
+        ax.set_xlim(-0.6, len(table) + 1.4)
 
     ax.set_xticks(positions)
-    ax.set_xticklabels([a.replace("+", "\n+") for a in table["axes"]], fontsize=9)
+    ax.set_xticklabels([a.replace("+", "\n+") for a in table["axes"]], fontsize=8.5)
     _style(ax, ylabel=f"OverRate ({slice_name})", xlabel="regime axes", title=title)
     return _save(fig, path)
 
