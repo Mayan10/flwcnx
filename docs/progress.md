@@ -73,48 +73,139 @@ written on every run.
 
 ## Phase 3. Evaluation harness
 
-Status: code complete, unit tested on synthetic fixtures.
+Status: done, and now exercised on real data rather than fixtures.
 
 `eval/metrics.py`, `eval/splits.py`, `eval/runner.py`, `eval/figures.py`.
-Metric definitions follow BG-CFQS exactly so the numbers are comparable.
+Metric definitions follow BG-CFQS exactly so the numbers would be comparable if
+the datasets were.
+
+Added since: `run_experiment` accepts a caller supplied split, which is what
+leave-one-location-out needs because it spans two sources. `scripts/make_figures.py`
+and `scripts/make_summary.py` render every figure and the committed markdown
+tables from a saved `result.json`, recomputing nothing.
 
 ## Phase 4. Regime conditioned calibration
 
-Status: code complete, unit tested on synthetic fixtures, **not yet evaluated
-on real traces**.
+Status: **done and evaluated on real data.** This is the phase that turned the
+project from a mechanism into a result.
 
-The mechanism is confirmed on constructed heteroscedastic data, where low
-elevation means low capacity and wide residuals at the same time. There the
-layer moves P30 OverRate from 0.408 to 0.356 and P10 from 0.404 to 0.355 with
-the global rate and MAE unchanged. That is a demonstration that the code does
-what it claims, on data built to contain the effect. It is **not a result** and
-must never be quoted as one.
+Run: `results/final/wetlinks-seconds-Osnabruck-capacity`, 68,398 iperf bursts,
+40,573 / 13,514 / 13,530 temporal split, leak check clean, seed 1337, MPS.
+Summary table committed at `results/summary/osnabruck-capacity.md`.
 
-`state/regime.py` and `calibrate/regime_cal.py`, then `decide/admission.py` and
-`decide/congestion.py`. The epsilon sweep and the regime granularity ablation
-are wired into the runner grid and have not been run.
+**Three findings, in the order they were forced on us.**
+
+1. **The regime axes from CLAUDE.md section 7 mostly do not work here, and one
+   is worse than nothing.** The ablation at budget 0.35, P10 OverRate:
+
+   | axes | P10 OverRate |
+   |---|---|
+   | level + candidates | 0.6038 |
+   | level | 0.6046 |
+   | global (no conditioning) | 0.6393 |
+   | candidates | 0.6460 |
+   | phase | 0.6711 |
+
+   Phase alone is *worse* than not conditioning at all. Candidate count barely
+   helps. What carries the gain is `level`, the mean of the observed look-back
+   window, which is not one of the axes the brief named. It was added because
+   the geometry axes turned out to be unrecoverable, and it is the axis that
+   actually sees the low capacity regime.
+
+2. **Every static calibration missed its budget**, including ours, because the
+   test month is 10% slower than the calibration month. See
+   `docs/limitations.md` section 1, rewritten around the measurement.
+
+3. **Online per-regime recalibration fixes the budget and improves the
+   conditional rates.** `calibrate/adaptive.py`. At budget 0.35:
+
+   | method | OverRate | P30 | P10 | MAE |
+   |---|---|---|---|---|
+   | point forecast | 0.5048 | 0.7472 | 0.8411 | 24.40 |
+   | split conformal, global | 0.4227 | 0.6689 | 0.7546 | 24.77 |
+   | regime conformal, static (ours) | 0.4086 | 0.5967 | 0.6681 | 24.87 |
+   | adaptive conformal, global | 0.3498 | 0.5679 | 0.6393 | 26.02 |
+   | adaptive regime conformal (ours) | 0.3508 | 0.5484 | 0.6038 | 25.99 |
+
+   Both mechanisms contribute and they compose: adaptation buys the budget,
+   conditioning buys the conditional rates.
+
+**The epsilon sweep is the strongest single result.** The online layer tracks
+the budget within 0.002 at every point from 0.05 to 0.35, where static split
+conformal is 0.02 to 0.07 over throughout. Worth recording that our advantage
+does **not** widen as the budget tightens, which CLAUDE.md section 8 predicted
+it would: the relative P10 improvement is roughly constant at 18 to 20% across
+the sweep. That prediction was wrong and is reported as wrong.
+
+**Downstream.** Admission control at 10 Mbps per session, mean dropped
+sessions: 1.341 point, 1.108 global conformal, 0.915 ours, a 31.8% reduction
+against the uncalibrated forecaster and 17.4% against global conformal. On the
+P10 slice 3.308 to 2.385, a 27.9% reduction. Utilisation falls from 0.943 to
+0.913, which is the price and is reported next to the gain.
 
 ## Phase 5. Cross location analysis for O1
 
-Status: not started. Needs the Horizon dataset pull.
+Status: done in its weak form. `results/final/cross-site-holdout-Enschede`,
+summary at `results/summary/cross-site-enschede.md`.
+
+Train the forecaster on Osnabruck only, hold out Enschede entirely, calibrate
+on the held out site's own earlier half. The forecaster never sees an Enschede
+window.
+
+The headline: **worst regime OverRate falls from 0.800 under global conformal
+to 0.4255 under ours**, the largest conditional gain measured anywhere in this
+project, on the site the model was not trained on. Global OverRate 0.3513, P10
+0.6616 against the point forecast's 0.7968. So the layer is a method, not a per
+terminal tuning trick.
+
+Two honest qualifications. Two European sites 150 km apart under the same
+constellation, same instrument, same months, is a weak version of the cross
+location question. And the drift is smaller here because calibration and test
+come from adjacent halves of the same site rather than adjacent months, which
+is why even static conformal lands at 0.3597 rather than Osnabruck's 0.4227.
+That is a controlled demonstration that drift, not construction, is what breaks
+the static bound.
+
+The Horizon dataset pull for the hourly cross-country analysis is **not done**.
 
 ## Phase 6. Hardening and writeup
 
-Status: not started.
+Status: partial. Tests at 146, ruff clean, figures and summary tables
+generated. `ingest/live.py` is still a stub and the README architecture
+diagram is still text.
 
-## Open questions still outstanding
+## Open questions
 
-Carried from CLAUDE.md section 12, none answered yet:
+Carried from CLAUDE.md section 12. Answered where the build answered them.
 
-1. What is the dataset supplied with the problem statement?
-2. Is there a GPU available? The machine this was scaffolded on has Apple MPS
-   and no CUDA device, so `reproduce_starnet.py` defaults to MPS.
-3. What is the submission deadline?
-4. Is the deliverable a report, a demo, a presentation, or all three?
+1. **What is the supplied dataset?** Answered. It is WetLinks, and the two CSVs
+   handed over were a subset of a larger public release. The full release
+   carries per-second iperf capacity, which is what made the project runnable
+   without the StarNet traces. See `docs/supplied-dataset.md` and
+   `docs/wetlinks-full.md`.
+2. **Is there a GPU?** Answered by use: Apple MPS, no CUDA. The full Osnabruck
+   grid, 30 epochs plus 336 calibration fits, runs in about 25 minutes.
+3. **What is the submission deadline?** Still unanswered. Nothing has been
+   sequenced around a date.
+4. **Report, demo, or presentation?** Still unanswered. `decide/` and the live
+   path are built to the level the brief specified and no further. If a live
+   demo is required, `ingest/live.py` is the gap.
+5. **Is the Casparsen latency crossover worth promoting?** Partly answered.
+   The latency path runs (`results/summary/pilot-wetlinks-uos-rz-latency.json`)
+   and the calibration layer transfers to it as an upper bound. It has not been
+   rerun with the online layer, which it would benefit from.
 
-And one raised by the build:
+New, raised by the results:
 
-5. The brief says the StarNet traces are throughput only and treats the
-   Casparsen latency crossover as a stretch. They carry latency. Is that
-   crossover worth promoting now that it is cheap, or does it stay behind the
-   core system?
+6. **`level` is doing the work, and it is not a satellite covariate.** The
+   contribution as stated in CLAUDE.md section 2 defines regime in terms of
+   phase and satellite geometry. On this data those axes are weak or dead and
+   the gain comes from the observed look-back level. The contribution statement
+   should be rewritten around "covariates the terminal can compute at
+   prediction time", which is what it always said in general, rather than the
+   specific four axes it then listed. Worth deciding deliberately rather than
+   letting the code and the claim drift apart.
+7. **Is the online layer inside or outside the contribution boundary?** The
+   update rule is Gibbs and Candes and labelled as theirs. Running it per
+   regime is new as far as the reading has gone, but that reading is not a
+   literature search. Someone should check before it is claimed in a writeup.
