@@ -40,8 +40,10 @@ online layer tracks its target within 0.002 at every point:
 | achieved | 0.0516 | 0.1007 | 0.1508 | 0.2010 | 0.2511 | 0.3010 | 0.3508 |
 
 Downstream, at 10 Mbps per session: mean dropped sessions falls from 1.341
-(uncalibrated) to 0.915, a 31.8% reduction, at a cost of 3 points of link
-utilisation (0.943 to 0.913).
+(uncalibrated) to 0.915, a 31.8% reduction, at a cost of 3.0 points of link
+utilisation (0.9431 to 0.9131). Against the static conformal bound rather than
+the raw forecast the comparison is 1.108 to 0.915 dropped sessions for 1.6
+points of utilisation.
 
 The layer sits on top of any forecaster. Across six backbones the achieved
 global OverRate spans 0.3494 to 0.3512 against the 0.35 budget, while those

@@ -51,9 +51,12 @@ What remains true, and must stay in view:
 - **It needs feedback.** The online layer consumes realised outcomes. A
   deployment that cannot measure what it actually got after each decision
   cannot run this layer, and falls back to the static version and its drift.
-- **It costs accuracy.** MAE 24.77 to 26.02 Mbps, about 5%, and roughly 1.3
-  points of link utilisation. That is the price of holding the budget and it is
-  reported rather than absorbed.
+- **It costs accuracy and utilisation.** Against the static global conformal
+  bound it is the closest like-for-like comparison to make: MAE 24.77 to 26.02
+  Mbps, about 5%, and link utilisation 0.9294 to 0.9124, 1.7 points. Against the
+  uncalibrated forecaster the utilisation cost is 3.0 points (0.9431 to 0.9131).
+  Quote whichever baseline is meant and say which; the two differ by nearly a
+  factor of two.
 - **Conditional risk on the P30 and P10 slices is improved, not solved.** Those
   slices are defined by the *true* throughput, which is not observable at
   prediction time. No amount of conditioning on observable covariates can
