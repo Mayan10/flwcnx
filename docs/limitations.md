@@ -111,7 +111,26 @@ proxy.
 - BG-CFQS has no public code. Everything here is written from the paper, and
   the check on it is their published selected quantiles and their conditional
   OverRate table. If those do not come out, the reimplementation is wrong and
-  the comparison is worthless.
+  the comparison is worthless. **Neither check has been run**, because both
+  need the traces.
+- **BG-CFQS cannot serve a budget below 0.15, and this is structural rather
+  than a defect in the reimplementation.** Their candidate quantile set is
+  T = [0.15, 0.40] (CLAUDE.md section 6, their published configuration), so the
+  boundary search cannot select an operating point below the low end of its own
+  candidate range. Measured on the Osnabruck sweep, the achieved global
+  OverRate is pinned at 0.1854 for every budget at or below 0.15:
+
+  | budget | 0.05 | 0.10 | 0.15 | 0.20 | 0.25 | 0.30 | 0.35 |
+  |---|---|---|---|---|---|---|---|
+  | BG-CFQS | 0.1854 | 0.1854 | 0.1854 | 0.2438 | 0.2969 | 0.3494 | 0.4054 |
+  | ours, online | 0.0516 | 0.1007 | 0.1508 | 0.2010 | 0.2511 | 0.3010 | 0.3508 |
+
+  At a budget of 0.05 it overshoots by a factor of 3.7. Their paper reports
+  only epsilon = 0.35, where the floor never binds, so this does not contradict
+  anything they published. It does mean the method as specified cannot be used
+  at the budgets a real allocator would want, and it is the clearest
+  demonstration in this project of why the sweep was worth running. Widening T
+  would fix it and would no longer be their method.
 - StarNet's obstruction-map-to-TLE resolution is implemented but untested
   against real obstruction maps, because the released traces already carry the
   resolved serving satellite. It is live-path code with unit tests on geometry,

@@ -61,6 +61,12 @@ Ordered by the severe-risk slice, so the top row is the best conditioning set.
 | 0.30 | 0.3712 / 0.6977 | 0.3513 / 0.5935 | 0.3010 / 0.5425 |
 | 0.35 | 0.4227 / 0.7546 | 0.4086 / 0.6681 | 0.3508 / 0.6038 |
 
+> **On the BG-CFQS column above the sweep.** It is pinned at 0.1854 for every
+> budget at or below 0.15 because its published candidate quantile set is
+> T = [0.15, 0.40] and the boundary search cannot select below its own range.
+> Their paper reports only epsilon = 0.35, where the floor never binds. See
+> `docs/limitations.md` section 4.
+
 ## Downstream: admission control
 
 | method | slice | mean dropped | violation rate | P95 dropped | utilisation |
