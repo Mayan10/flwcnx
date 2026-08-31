@@ -335,7 +335,7 @@ def admission_comparison(tables: dict[str, pd.DataFrame], path: str | Path,
 
 def adaptation_trace(trace: pd.DataFrame, epsilon: float, path: str | Path,
                      *, title: str = "Online recalibration",
-                     max_regimes: int = 6) -> Path:
+                     max_regimes: int = 4) -> Path:
     """The alpha path per regime, and the running realised risk rate.
 
     Two panels. The top one answers "did it converge or oscillate", which is
@@ -349,7 +349,7 @@ def adaptation_trace(trace: pd.DataFrame, epsilon: float, path: str | Path,
     if trace.empty:
         raise ValueError("adaptation_trace needs a non-empty trace")
 
-    fig, (top, bottom) = plt.subplots(2, 1, figsize=(8.4, 6.0), sharex=True,
+    fig, (top, bottom) = plt.subplots(2, 1, figsize=(9.0, 6.6), sharex=True,
                                       height_ratios=[1.0, 0.85])
 
     # Busiest regimes only. A regime seen twice contributes a two point line
@@ -361,19 +361,28 @@ def adaptation_trace(trace: pd.DataFrame, epsilon: float, path: str | Path,
         top.plot(part.index.to_numpy(), part["alpha"].to_numpy(), linewidth=1.2,
                  color=FALLBACK_ORDER[index % len(FALLBACK_ORDER)],
                  label=f"{regime} (n={counts[regime]})", zorder=3)
-    top.axhline(epsilon, color=TEXT_PRIMARY, linewidth=1.3, linestyle="--", zorder=4)
-    top.text(len(trace) * 1.005, epsilon, f"$\\epsilon$ = {epsilon:.2f}", fontsize=9,
+    # The budget line runs the width of the data and its label sits in reserved
+    # margin past the end. Anywhere inside the axes it lands on a trace.
+    # hlines, not axhline: axhline spans the full axes including the margin
+    # reserved for the label, and draws straight through it.
+    top.hlines(epsilon, 0, len(trace), color=TEXT_PRIMARY, linewidth=1.3,
+               linestyle="--", zorder=4)
+    top.set_xlim(0, len(trace) * 1.12)
+    top.text(len(trace) * 1.015, epsilon, f"$\\epsilon$ = {epsilon:.2f}", fontsize=9,
              color=TEXT_PRIMARY, ha="left", va="center")
     _style(top, ylabel="$\\alpha$ (per regime)", title=title)
+    # Below the panel, not inside it: these traces fill their axes and any
+    # in-frame legend covers the behaviour the figure exists to show.
     top.legend(frameon=False, fontsize=8, labelcolor=TEXT_SECONDARY,
-               ncols=min(len(shown), 3), loc="upper left")
+               ncols=min(len(shown), 2), loc="upper left", bbox_to_anchor=(0, -0.04))
 
     # Running mean of the risk indicator: the quantity the update rule steers.
     risk = trace["risk_event"].to_numpy(dtype=float)
     running = np.cumsum(risk) / np.arange(1, risk.size + 1)
     bottom.plot(np.arange(risk.size), running, linewidth=1.4,
                 color=SERIES_COLORS["adaptive_regime_conformal"], zorder=3)
-    bottom.axhline(epsilon, color=TEXT_PRIMARY, linewidth=1.3, linestyle="--", zorder=4)
+    bottom.hlines(epsilon, 0, len(trace), color=TEXT_PRIMARY, linewidth=1.3,
+                  linestyle="--", zorder=4)
     _style(bottom, ylabel="realised risk rate", xlabel="test decision index")
     bottom.set_ylim(0, max(1.0, float(np.nanmax(running)) * 1.15))
 
