@@ -41,7 +41,9 @@ from flwcnx.eval.runner import comparison_table, risk_table, run_experiment
 from flwcnx.ingest.wetlinks import SITE_COORDINATES, WetLinksConfig, WetLinksSource
 
 STATUS_GRANULARITIES = ["global", "obstruction", "obstruction+hour", "full"]
-SECONDS_GRANULARITIES = ["global", "phase", "phase+elevation", "full"]
+SECONDS_GRANULARITIES = ["global", "phase", "candidates", "level",
+                         "level+volatility", "level+phase", "level+candidates",
+                         "full"]
 
 
 def build_source(args, root: Path, seconds: bool):

@@ -8,7 +8,7 @@ import pytest
 
 from flwcnx.config import FEATURE_CLASSES, FEATURE_COLUMNS, PERIOD_SECONDS, RegimeConfig
 from flwcnx.ingest.synthetic import SyntheticSpec, generate_frame
-from flwcnx.state.features import REGIME_COVARIATES, make_sequences
+from flwcnx.state.features import REGIME_COVARIATES, WINDOW_COVARIATES, make_sequences
 from flwcnx.state.phase import (
     FIXED_PHASE_OFFSET,
     assign_phase,
@@ -202,11 +202,36 @@ def test_sequence_shapes_and_units(sequences):
     assert sequences.x.shape[1:] == (30, 13)
     assert sequences.y.shape[1] == 5
     assert sequences.phase.shape == (len(sequences), 30)
-    assert list(sequences.regime.columns) == list(REGIME_COVARIATES)
+    assert list(sequences.regime.columns) == list(REGIME_COVARIATES) + list(WINDOW_COVARIATES)
     # StarNet axes must be real, not the NaN placeholders.
     assert sequences.regime["elevation_deg"].notna().all()
     # Standardising must not touch the target: every metric is in Mbps.
     assert sequences.y.mean() > 20.0
+
+
+def test_window_covariates_summarise_the_lookback_not_the_horizon(sequences):
+    """`level` and `volatility` must be functions of the observed history only.
+
+    They are the axes most likely to carry the calibration gain, which makes
+    them the ones most worth proving cannot see the answer. Recomputing them
+    from the horizon would give a different number; recomputing from the
+    look-back reproduces them exactly.
+    """
+    import numpy as np
+
+    index = sequences.target_index
+    # x is standardised, so compare on the standardised scale by rebuilding the
+    # same statistic from the same channel the windower read.
+    history = sequences.x[:, :, index]
+    level = sequences.regime["level"].to_numpy()
+    volatility = sequences.regime["volatility"].to_numpy()
+
+    # Standardisation is affine, so an exact correlation of 1 with the
+    # look-back mean is the check, and it must not hold against the horizon.
+    assert np.corrcoef(level, history.mean(axis=1))[0, 1] > 0.999
+    assert np.corrcoef(volatility, history.std(axis=1))[0, 1] > 0.999
+    horizon_mean = sequences.y.mean(axis=1)
+    assert np.corrcoef(level, horizon_mean)[0, 1] < 0.999
 
 
 def test_regime_covariates_are_read_at_the_forecast_origin(feature_frame):

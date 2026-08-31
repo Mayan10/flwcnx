@@ -63,8 +63,7 @@ from flwcnx.state.features import (
 )
 from flwcnx.state.regime import (
     RegimeAssigner,
-    regime_granularity_presets,
-    wetlinks_granularity_presets,
+    presets_for,
 )
 
 BACKBONES = ("starnet", "starnet_no_pe", "starnet_no_attn", "dlinear", "patchtst", "timesnet")
@@ -234,8 +233,7 @@ def run_experiment(
         "confidence": prepared["phase_reference"].confidence,
     }
 
-    presets = (wetlinks_granularity_presets() if config.dataset == "wetlinks"
-               else regime_granularity_presets())
+    presets = presets_for(config.dataset)
     for epsilon in epsilons:
         for granularity in granularities:
             axes = presets[granularity]
@@ -301,8 +299,11 @@ def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
 
     # Per regime breakdown, always at the full granularity so that different
     # calibration granularities are judged against the same partition.
-    reference_axes = (wetlinks_granularity_presets()["full"] if direction == "upper"
-                      else regime_granularity_presets()["full"])
+    # Always the full grid for the dataset in hand, so that every granularity
+    # is judged against the same partition. Keyed on the dataset rather than on
+    # the risk direction: the seconds release is a lower-bound problem but has
+    # nothing like the StarNet geometry axes to be scored against.
+    reference_axes = presets_for(config.dataset)["full"]
     full_assigner = RegimeAssigner(replace(RegimeConfig(), axes=reference_axes)).fit(
         train_set.regime
     )

@@ -263,6 +263,11 @@ class RegimeConfig:
     obstruction_quantiles: tuple[float, ...] = (0.5, 0.9)
     azimuth_sectors: int = 4
     hour_edges: tuple[float, ...] = (6.0, 12.0, 18.0)
+    # Look-back window axes. Quartiles rather than terciles because the risk
+    # failure these are meant to catch is concentrated in the bottom slice, and
+    # a quarter is close to the P30 subset the conditional metrics report on.
+    level_quantiles: tuple[float, ...] = (0.25, 0.5, 0.75)
+    volatility_quantiles: tuple[float, ...] = (0.5, 0.9)
 
 
 @dataclass(frozen=True)

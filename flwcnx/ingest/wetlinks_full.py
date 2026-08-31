@@ -294,6 +294,12 @@ def attach_geometry(
         raise ValueError("no element sets covered the measurement window")
     geometry = pd.concat(pieces, ignore_index=True).drop(columns=[TIME_COL])
 
+    # The loader lays down empty placeholders for every normalized column, so
+    # `candidate_count` already exists and is all null. Left in place it would
+    # win the merge and silently suffix the real values to `candidate_count_geo`,
+    # which is how this column came back 100% null the first time it was run.
+    work = work.drop(columns=[c for c in ("candidate_count", "elevation_deg",
+                                          "distance_km") if c in work.columns])
     work = work.merge(geometry, on="segment", how="left", suffixes=("", "_geo"))
     # Canonical names so the existing regime axes work unchanged. The alias and
     # the marker column are what keep the provenance visible.

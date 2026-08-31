@@ -47,6 +47,10 @@ REQUIRED_COLUMNS: dict[str, str] = {
     "obstruction": "fraction_obstructed",
     "azimuth": "dish_azimuth_deg",
     "hour": "hour",
+    # Look-back window axes, produced by state.features rather than read from
+    # the raw frame. See WINDOW_COVARIATES there for why they exist.
+    "level": "level",
+    "volatility": "volatility",
 }
 
 
@@ -96,6 +100,8 @@ class RegimeAssigner:
     config: RegimeConfig = field(default_factory=RegimeConfig)
     _candidate_edges: tuple[float, ...] = field(default=(), repr=False)
     _obstruction_edges: tuple[float, ...] = field(default=(), repr=False)
+    _level_edges: tuple[float, ...] = field(default=(), repr=False)
+    _volatility_edges: tuple[float, ...] = field(default=(), repr=False)
     _fitted: bool = field(default=False, repr=False)
 
     def _fit_edges(self, frame: pd.DataFrame, axis: str,
@@ -114,6 +120,12 @@ class RegimeAssigner:
         if "obstruction" in self.config.axes:
             self._obstruction_edges = self._fit_edges(frame, "obstruction",
                                                       self.config.obstruction_quantiles)
+        if "level" in self.config.axes:
+            self._level_edges = self._fit_edges(frame, "level",
+                                                self.config.level_quantiles)
+        if "volatility" in self.config.axes:
+            self._volatility_edges = self._fit_edges(frame, "volatility",
+                                                     self.config.volatility_quantiles)
         self._fitted = True
         return self
 
@@ -176,6 +188,14 @@ class RegimeAssigner:
             return out
         if axis == "hour":
             return self._binned(values, self.config.hour_edges, "h")
+        if axis == "level":
+            if not self._fitted:
+                raise RuntimeError("RegimeAssigner.assign before fit (level quartiles)")
+            return self._binned(values, self._level_edges, "L")
+        if axis == "volatility":
+            if not self._fitted:
+                raise RuntimeError("RegimeAssigner.assign before fit (volatility cuts)")
+            return self._binned(values, self._volatility_edges, "v")
         raise ValueError(f"unknown regime axis {axis!r}")
 
     # -- hierarchy ---------------------------------------------------------
@@ -263,6 +283,30 @@ def regime_granularity_presets() -> dict[str, tuple[str, ...]]:
     }
 
 
+def wetlinks_seconds_granularity_presets() -> dict[str, tuple[str, ...]]:
+    """The ablation grid for the per-second iperf release.
+
+    This is the grid that answers the question CLAUDE.md section 8 asks: which
+    conditioning variables carry the gain. `phase` and `candidates` are the two
+    StarNet axes that survive on this data (phase is recovered, candidates are
+    propagated exactly). `level` and `volatility` are the look-back axes.
+
+    Ordered so the fallback hierarchy drops the weakest axis first: axes are
+    dropped from the end of the tuple, and level is the axis we least want to
+    lose because it is the one that sees the low-capacity regime.
+    """
+    return {
+        "global": (),
+        "phase": ("phase",),
+        "candidates": ("candidates",),
+        "level": ("level",),
+        "level+volatility": ("level", "volatility"),
+        "level+phase": ("level", "phase"),
+        "level+candidates": ("level", "candidates"),
+        "full": ("level", "volatility", "phase", "candidates"),
+    }
+
+
 def wetlinks_granularity_presets() -> dict[str, tuple[str, ...]]:
     """The ablation grid for the supplied dataset.
 
@@ -277,3 +321,17 @@ def wetlinks_granularity_presets() -> dict[str, tuple[str, ...]]:
         "obstruction+hour": ("obstruction", "hour"),
         "full": ("obstruction", "hour", "azimuth"),
     }
+
+
+def presets_for(dataset: str) -> dict[str, tuple[str, ...]]:
+    """The ablation grid that matches a dataset's available covariates.
+
+    One lookup rather than a conditional at each call site, because the runner
+    needs the same answer twice: once to choose what to calibrate on, and once
+    to choose the fixed partition every granularity is *scored* against.
+    """
+    if dataset == "wetlinks_seconds":
+        return wetlinks_seconds_granularity_presets()
+    if dataset == "wetlinks":
+        return wetlinks_granularity_presets()
+    return regime_granularity_presets()

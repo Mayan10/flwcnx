@@ -44,6 +44,18 @@ REGIME_COVARIATES: tuple[str, ...] = (
     "fraction_obstructed", "dish_azimuth_deg", "hour",
 )
 
+#: Regime covariates derived from the look-back window rather than read from a
+#: column. Both are computed over the *observed* target history only, never the
+#: horizon, so they are available to a terminal at the moment it must decide.
+#:
+#: These exist because the conditional risk failure BG-CFQS reports is a
+#: low-capacity failure, and the geometry axes cannot see it: the serving
+#: satellite is not recorded in any public trace, and best-in-view elevation is
+#: near zenith almost always (std 3.9 degrees here), so it carries no signal.
+#: What does identify the low-capacity regime at prediction time is where the
+#: link has just been and how much it has been moving.
+WINDOW_COVARIATES: tuple[str, ...] = ("level", "volatility")
+
 
 @dataclass
 class Standardizer:
@@ -271,13 +283,19 @@ def make_sequences(
 
         for start in range(0, len(part) - total + 1, stride):
             origin = start + lookback - 1          # last observed step
+            history = target[start : start + lookback]
             xs.append(values[start : start + lookback])
             ys.append(target[start + lookback : start + total])
             phases.append(phase[start : start + lookback])
             origins.append(times[origin])
             segments.append(segment)
-            # Read at the origin, never from the horizon.
-            regime_rows.append(covariates[origin])
+            # Read at the origin, never from the horizon. The two window
+            # covariates are appended in WINDOW_COVARIATES order and are
+            # summaries of the observed history alone, so the same rule holds.
+            regime_rows.append(np.concatenate([
+                covariates[origin],
+                [np.nanmean(history), np.nanstd(history)],
+            ]))
 
     if not xs:
         raise ValueError(
@@ -289,7 +307,8 @@ def make_sequences(
         x=np.asarray(xs, dtype=np.float32),
         y=np.asarray(ys, dtype=np.float32),
         phase=np.asarray(phases, dtype=np.float32),
-        regime=pd.DataFrame(np.asarray(regime_rows), columns=list(REGIME_COVARIATES)),
+        regime=pd.DataFrame(np.asarray(regime_rows),
+                            columns=list(REGIME_COVARIATES) + list(WINDOW_COVARIATES)),
         origin_time=np.asarray(origins),
         segment=np.asarray(segments, dtype=np.int64),
         feature_names=tuple(feature_names),
