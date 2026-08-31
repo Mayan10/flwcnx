@@ -5,32 +5,60 @@ out to be wrong should be corrected in place rather than quietly dropped.
 
 ## 1. Exchangeability breaks under a temporal split
 
+**Status: measured, and mitigated. This section was rewritten on 2026-08-31
+after the mitigation was built. The original text predicted the effect and
+listed the fix as unimplemented; both halves turned out right.**
+
 Split conformal guarantees `P(bound > y) <= epsilon` only if the calibration
-and test residuals are exchangeable. Temporal splits deliberately violate this:
-the test block is later in time than the calibration block, and Starlink
-throughput is non-stationary on exactly the timescales that matters over.
+and test residuals are exchangeable. Temporal splits deliberately violate this,
+and on the Osnabruck per-second release the violation is large and measurable:
 
-This is visible in every smoke run. Against a budget of 0.35 the global
-conformal bound lands well above it on the test block, even though it lands
-exactly on it when calibration and test are drawn from the same period. The
-effect is not a bug in the implementation: `tests/test_calibrate.py` confirms
-the bound hits its budget to within 0.02 on exchangeable data at three
-different budgets.
+    train  2023-09-14 to 2024-01-05   mean 208.6 Mbps
+    calib  2024-01-05 to 2024-02-06   mean 219.0 Mbps
+    test   2024-02-06 to 2024-03-12   mean 197.2 Mbps
 
-Consequences to keep in view:
+The test month is 10% slower than the month the operating point was fit on. The
+cost, against a 0.35 budget on 13,530 test decisions:
 
-- **Do not report "risk pass" as though the guarantee were unconditional.**
-  Every risk-pass column in this repo is empirical, measured on the test block.
-- Our layer inherits this. Regime conditioning fixes *conditional* risk given
-  the same marginal drift; it does not fix the drift. If the real traces show
-  large drift, expect both the baseline and our layer to overshoot, and the
-  claim narrows to "we overshoot less unevenly", which is a weaker claim and
-  has to be written as one.
-- The honest mitigations, in order of preference: a rolling or online
-  calibration that refits the operating point on recent residuals; a shorter
-  gap between calibration and test; or reporting against both a temporal and a
-  same-period split so the drift cost is separated from the conditioning gain.
-  None of these is implemented yet.
+| method | global OverRate | within budget |
+|---|---|---|
+| point forecast | 0.5048 | no |
+| split conformal, global | 0.4227 | no |
+| regime conformal, static (ours) | 0.4086 | no |
+| adaptive conformal, global | 0.3498 | yes |
+| adaptive regime conformal (ours) | 0.3508 | to within 0.001 |
+
+Every static method missed, including ours. This is not an implementation
+defect: `tests/test_calibrate.py` confirms the bound hits its budget to within
+0.02 on exchangeable data at three different budgets. The data is the problem.
+
+**The mitigation.** `calibrate/adaptive.py` keeps one alpha and one rolling
+residual window per regime and updates both from outcomes as they become
+observable. The update rule is Gibbs and Candes 2021 and is theirs; running it
+per regime is ours. Across the full budget sweep it tracks the target within
+0.002 at every point:
+
+| budget | 0.05 | 0.10 | 0.15 | 0.20 | 0.25 | 0.30 | 0.35 |
+|---|---|---|---|---|---|---|---|
+| achieved | 0.0516 | 0.1007 | 0.1508 | 0.2010 | 0.2511 | 0.3010 | 0.3508 |
+
+What remains true, and must stay in view:
+
+- **"Within budget" is still empirical, never a guarantee.** Adaptive conformal
+  has a regret bound on the long-run rate, not a finite-sample coverage
+  guarantee. Every risk-pass column in this repo is a measurement on a test
+  block, and none of them is a theorem.
+- **It needs feedback.** The online layer consumes realised outcomes. A
+  deployment that cannot measure what it actually got after each decision
+  cannot run this layer, and falls back to the static version and its drift.
+- **It costs accuracy.** MAE 24.77 to 26.02 Mbps, about 5%, and roughly 1.3
+  points of link utilisation. That is the price of holding the budget and it is
+  reported rather than absorbed.
+- **Conditional risk on the P30 and P10 slices is improved, not solved.** Those
+  slices are defined by the *true* throughput, which is not observable at
+  prediction time. No amount of conditioning on observable covariates can
+  equalise risk across a partition defined by the answer. P10 OverRate falls
+  from 0.841 to 0.604; it does not reach 0.35 and could not.
 - Horizon's window-length asymmetry (latency best at two months, throughput
   improving out to eleven) is independent evidence that this drift is real and
   differs by signal.
@@ -53,6 +81,27 @@ estimation noise rather than a modelling failure. The `min_samples` guard
 trades this against coverage: raising it shrinks the noise and pushes mass up
 to coarser levels, which is the whole point of reporting mass-by-level next to
 every result.
+
+## 3b. The satellite geometry is reconstructed, and two axes of it are dead
+
+Added 2026-08-31, after the geometry was actually computed.
+
+WetLinks records no serving satellite. Candidate count is recovered exactly by
+propagating 181 consecutive days of Space-Track elements against the known site
+coordinates: mean 37.6, range 4 to 59, against StarNet's reported 15 to 45.
+
+Serving elevation and distance are **not recoverable**, and the obvious proxy
+fails for a structural reason. With roughly 38 satellites above the 25 degree
+service floor, the highest one is near zenith almost always: its elevation has
+standard deviation 3.9 degrees around 81, and its correlation with throughput
+is -0.02. Conditioning on it is conditioning on noise.
+
+The consequence for the ablation is that objective O2 is only half answered
+here. Candidate count is a real, exact axis and it contributes very little
+(P10 OverRate 0.6460 against 0.6393 for no conditioning at all). Whether
+*serving* satellite geometry would have carried more is a question this data
+cannot answer, and the answer must not be inferred from the failure of the
+proxy.
 
 ## 4. What is not reproduced from the baselines
 
@@ -77,3 +126,11 @@ every result.
 - The allocation layer assumes uniform 10 Mbps services and an oracle defined
   by realised throughput. Real admission control has heterogeneous demands,
   holding times, and a scheduler.
+- The sequence length is capped by the data, not chosen. Every iperf run in the
+  WetLinks seconds release is exactly 15 samples, so look-back plus horizon
+  cannot exceed 15 and every run here is 10/5. StarNet's 30/5 and BG-CFQS's
+  75/15 are impossible on this data, which is one of several reasons no number
+  in this repo is comparable to a published one.
+- Cross location means two European sites 150 km apart, measured by the same
+  instrument in the same months. It is not the three continents the StarNet
+  traces would have given, and it should not be described as though it were.
