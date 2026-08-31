@@ -61,6 +61,7 @@ from flwcnx.state.features import (
     make_sequences,
     standardize_sequences,
 )
+from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
 from flwcnx.state.regime import (
     RegimeAssigner,
     presets_for,
@@ -280,6 +281,25 @@ def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
         calibrator.fit(predicted_cal, actual_cal, calibration_set.regime)
         lower = calibrator.transform(predicted_test, test_set.regime)
         detail = calibrator.summary()
+    elif method in ("adaptive_regime_conformal", "adaptive_global_conformal"):
+        # Online recalibration. Consumes actual_test, but strictly causally:
+        # the bound at step t is built from outcomes before t. See
+        # calibrate/adaptive.py for why a static offset cannot hold the budget
+        # across the one month gap between the calibration and test splits.
+        axes = (calibration_config.regime.axes
+                if method == "adaptive_regime_conformal" else ())
+        assigner = None
+        if axes:
+            assigner = RegimeAssigner(calibration_config.regime).fit(train_set.regime)
+        online = AdaptiveRegimeCalibrator(
+            config=replace(calibration_config,
+                           regime=replace(calibration_config.regime, axes=axes)),
+            assigner=assigner, direction=direction,
+        )
+        online.fit(predicted_cal, actual_cal, calibration_set.regime)
+        lower = online.transform_online(predicted_test, actual_test, test_set.regime)
+        detail = online.summary()
+        calibrator = None
     elif method == "point":
         # The uncalibrated forecaster, so the risk metrics have a floor to be
         # measured against. StarNet-point in the BG-CFQS table is this.
