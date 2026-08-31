@@ -172,9 +172,10 @@ def prepare(source: Source, config: ExperimentConfig):
 
 
 def run_experiment(
-    source: Source,
+    source: Source | None,
     config: ExperimentConfig,
     *,
+    prepared: dict | None = None,
     backbone: str = "starnet",
     calibration_methods: tuple[str, ...] = ("global_conformal", "regime_conformal",
                                             "regime_bgcfqs"),
@@ -196,7 +197,14 @@ def run_experiment(
     # taken from the dataset unless a caller deliberately overrides it.
     direction = direction or config.direction
 
-    prepared = prepare(source, config)
+    # `prepared` lets a caller supply its own split, which is what the cross
+    # site runner needs: leave-one-location-out spans two sources, so there is
+    # no single Source to hand in. Everything downstream is then identical,
+    # which is the point of allowing it rather than forking the function.
+    if prepared is None:
+        if source is None:
+            raise ValueError("run_experiment needs either a source or a prepared split")
+        prepared = prepare(source, config)
     train, calibration, test = prepared["train"], prepared["calibration"], prepared["test"]
     if verbose:
         print(f"[{config.name}] {prepared['split'].summary()}  leak_clean="
