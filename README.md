@@ -43,6 +43,11 @@ Downstream, at 10 Mbps per session: mean dropped sessions falls from 1.341
 (uncalibrated) to 0.915, a 31.8% reduction, at a cost of 3 points of link
 utilisation (0.943 to 0.913).
 
+The layer sits on top of any forecaster. Across six backbones the achieved
+global OverRate spans 0.3494 to 0.3512 against the 0.35 budget, while those
+backbones' own point MAE spans 24.3 to 35.2 Mbps. Conditional risk control is
+more backbone dependent, and `results/summary/backbones.md` says where and why.
+
 Full tables in `results/summary/`. Every number there is read back from a run's
 `result.json` with its config snapshot beside it.
 

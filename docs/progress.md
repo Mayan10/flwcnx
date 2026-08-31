@@ -168,6 +168,31 @@ the static bound.
 
 The Horizon dataset pull for the hourly cross-country analysis is **not done**.
 
+## Phase 5b. Backbone comparison
+
+Status: done. `results/backbones/`, summary at `results/summary/backbones.md`.
+
+Six forecasters under one unchanged calibration layer, to separate "the layer
+works" from "the layer interacts with the backbone it was built against".
+
+**Budget control is backbone independent, strongly.** Achieved global OverRate
+spans 0.3494 to 0.3512 against a 0.35 budget, across forecasters whose own
+point MAE spans 24.3 to 35.2 Mbps.
+
+**Conditional risk control is not, and the claim is narrowed accordingly.** P10
+reduction spans 11.2% to 31.7%. DLinear's point forecast over-predicts on
+essentially every decision in the lowest decile (P10 OverRate 0.9993), and
+conditioning cannot separate regimes when the forecast fails in the same
+direction everywhere. So: the budget is a property of the calibration, while
+conditional control needs the forecaster to leave residual structure the regime
+covariates can see.
+
+**The StarNet ablation half reproduces.** Removing the periodical embedding
+leaves MAE unchanged here (24.40 to 24.32) but costs clearly on risk (point
+OverRate 0.5048 to 0.5333, P10 0.8411 to 0.8906). Liu et al. report it costing
+RMSE. Not their ablation rerun: 10/5 rather than 30/5, different link. It does
+suggest the embedding's contribution sits in the tail rather than the mean.
+
 ## Phase 6. Hardening and writeup
 
 Status: partial. Tests at 146, ruff clean, figures and summary tables
