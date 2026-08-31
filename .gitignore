@@ -1,7 +1,11 @@
 # Data and artifacts never enter the history.
 data/
 !data/.gitkeep
-results/
+# `results/*` and not `results/`: git does not descend into an excluded
+# directory, so a negation below one never matches. Written as `results/`
+# the exception was silently dead and no summary table ever reached the
+# history, which is the opposite of the stated policy.
+results/*
 !results/summary/
 outputs/
 wandb/
