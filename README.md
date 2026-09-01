@@ -125,24 +125,34 @@ Being precise about this matters more than anything else in the repo.
 - the 15 second period segmentation and phase recovery (Casparsen et al., 2026);
 - one-sided split conformal prediction (Vovk, Gammerman and Shafer);
 - the adaptive conformal update rule `alpha <- alpha + gamma (eps - err)`
-  (Gibbs and Candès, NeurIPS 2021).
+  (Gibbs and Candès, NeurIPS 2021);
+- **running that update per covariate group**, which is GCACI (Ramalingam et
+  al. 2025, arXiv:2502.10947), and which POGO (arXiv:2606.00419) improves on by
+  removing the learning rate. `calibrate/adaptive.py` is the naive special case
+  of GCACI and was built before this was known. See `docs/novelty-assessment.md`.
 
-**Ours:**
+**Ours:** measurement, not method. A literature check on 2026-09-01
+(`docs/novelty-assessment.md`) found that the calibration layer this project was
+designed around is already published as GCACI, so the methods claim is withdrawn
+in full. What the work contributes is evidence:
 
-> An online calibration layer that converts a point throughput forecast into a
-> safe lower bound and holds a stated overestimation budget under distribution
-> shift, together with a regime conditioned form of it that maintains one
-> adaptive operating point and one residual window per regime rather than the
-> single global one the published rule assumes.
-
-**How that claim has narrowed, and why.** The project was designed around the
-regime conditioning, with the online layer added later when the temporal drift
-turned out to break every static method. On the evidence the two have swapped
-places. Online recalibration replicates on both datasets and dominates static
-calibration at matched risk. Regime conditioning gave 5.5% on WetLinks, about
-3% in the static setting on StarNet, and is net-negative in the online setting
-on StarNet. It is dataset dependent and small, and is described that way rather
-than as a reliable gain. See `results/summary/starnet-regime-grid.md`.
+1. The first evaluation of risk-controlled capacity forecasting on LEO access
+   links, across four datasets and two independent measurement campaigns.
+2. **BG-CFQS's risk guarantee is conditional on exchangeability**: 3/3 within
+   budget under a random split, 1/3 under a temporal one.
+3. **BG-CFQS cannot serve a budget below 0.15.** Their candidate set is
+   T = [0.15, 0.40], so achieved OverRate pins at 0.1854 for every tighter
+   budget, a 3.7x overshoot at 0.05. Their paper reports only 0.35.
+4. **Static calibration misses its budget in both directions**, over on
+   WetLinks and under on StarNet, so the sign is a property of the drift rather
+   than the method.
+5. **Group conditioning helps only when the groups differ**, and the spread of
+   the fitted per-regime offset predicts the sign across four datasets
+   monotonically, from a quantity computable before any test decision.
+6. **The satellite covariates do not carry the signal** when measured rather
+   than reconstructed. Objective O2's premise is not supported.
+7. **Casparsen's 15 s scheduling offset recovered independently** on three
+   continents from a different signal at 1/500th of their sampling rate.
 
 BG-CFQS selects one global quantile to hold the overestimation rate at the
 budget. Their own results show this fails conditionally: against a budget of

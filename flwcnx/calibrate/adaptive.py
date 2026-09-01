@@ -31,13 +31,21 @@ where err_t is 1 when the bound realised the risk event at step t. It is a
 standard online method with a known regret bound, and it is used here as a
 component exactly as the GRU backbone is.
 
-**What is ours** is running it per regime, with the regime hierarchy and the
-minimum sample fallback from `regime_cal.py`. ACI as published holds a single
-global rate and inherits precisely the conditional blindness that motivated
-this project: it would drive the global OverRate back to the budget while the
-low capacity regime kept absorbing the misses. One alpha per regime is what
-makes the adaptation conditional, and the empirical question this module is
-built to answer is whether the two mechanisms compose or fight.
+**This module is a reproduction, not a contribution.** It was written believing
+only the marginal single-alpha version was in print. That was wrong, and the
+correction is recorded rather than quietly absorbed:
+
+- **GCACI**, Ramalingam et al. 2025 (arXiv:2502.10947), already generalises ACI
+  to group-conditional guarantees, with an FTRL formulation that carries a
+  finite-time group-coverage bound. What this module does is the naive special
+  case of that, with no bound.
+- **POGO** (arXiv:2606.00419, 2026) goes further and is parameter-free. The
+  `gamma` below is exactly the learning rate POGO exists to eliminate.
+
+So one alpha per regime is prior work. What this project contributes is the
+measurement around it: which regimes actually differ on real LEO links, and the
+finding that conditioning helps only when they do. See
+`docs/novelty-assessment.md`.
 
 **Causality.** Nothing here reads an outcome before it is observable. At step t
 the bound is computed from residuals of steps strictly before t, then the step
