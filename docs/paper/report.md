@@ -1,0 +1,277 @@
+# Predictive Bandwidth Allocation for Starlink Access Links
+
+Project report. Mayan Sharma.
+
+---
+
+## 1. The problem statement, and what was built against it
+
+The brief asked for a predictive network management system, with three of six
+named issues addressed. The three chosen chain into one system rather than three
+disconnected models:
+
+1. **Predict throughput degradation** - the forecaster.
+2. **Detect congestion before users are affected** - derived from the calibrated
+   bound, not a separate classifier.
+3. **Optimize bandwidth allocation automatically** - the decision layer.
+
+The system is six layers, each talking only to the one below it:
+
+```
+ingest/     raw sources to a normalized frame     no ML, no features
+state/      frame to feature vectors + regime id  no model
+forecast/   feature vectors to point prediction   StarNet backbone
+calibrate/  point prediction to safe bound        the risk layer
+decide/     safe bound to allocation + alerts     no ML
+eval/       harness, splits, metrics, figures
+```
+
+The design decision that makes the whole thing testable is that congestion is
+**derived** rather than modelled: it is the calibrated bound sitting below the
+committed allocation for a sustained window. Issue 2 costs almost nothing and
+the system stays coherent.
+
+**Status: complete and running.** 176 tests, lint clean, both reproduction gates
+passed, a working demonstration, and every reported number traceable to a run
+with its configuration snapshot beside it.
+
+---
+
+## 2. Objectives
+
+| | Objective | Status |
+|---|---|---|
+| O1 | Analyze performance across time periods and locations | Done. Four datasets, three continents on the StarNet side, cross-site holdout on the WetLinks side. |
+| O2 | Study the influence of obstruction and satellite parameters | Done, and **the answer is negative**. See section 5.3. |
+| O3 | Develop and evaluate ML models for prediction | Done. StarNet reproduced within 1.1% RMSE, six backbones compared. |
+| O4 | Design a predictive framework for connectivity quality | Done. Calibration and allocation layers, evaluated across four datasets and a full budget sweep. |
+
+---
+
+## 3. Getting the data, which took most of the project
+
+The StarNet traces were unavailable for months: all three OneDrive links in the
+authors' repository had expired and neither the first author nor the PI replied.
+
+**The workaround.** The full WetLinks release contains
+`iperf_cleaned_seconds_*.csv`, per-second *measured capacity* from iperf. The
+two CSVs supplied with the brief were a subset that did not include it. That
+file substitutes for the traces on everything except serving-satellite identity:
+1,019,109 samples at 1 Hz against BG-CFQS's 1,123,832, phase unaliased,
+candidate count recoverable exactly by propagating 181 consecutive days of
+Space-Track orbital elements against the known site coordinates.
+
+The project ran to completion on that substitute before the traces arrived,
+which is why there are four datasets rather than three and why the
+cross-dataset disagreements in section 5 exist at all.
+
+**When the traces did arrive**, two of the three files were mislabelled: the
+folder marked `usa` contained Victoria and vice versa. Every file was identified
+from its contents, not its filename. Row counts (145,053 / 613,295) and
+satellite counts (3,166 / 3,956) match the paper's dataset table exactly, and
+the timezones place the terminals on the right continents.
+
+The US file holds 1,123,832 samples where the paper reports collecting
+2,475,163. This is correct: it is exactly BG-CFQS's stated CHI count, and
+`(1,123,832 - 45)/46 + 1 = 24,430` is exactly StarNet's published US data-point
+count. It is their training set, not a partial download.
+
+---
+
+## 4. Reproduction gates
+
+Nothing downstream means anything until these pass.
+
+### 4.1 StarNet - passed
+
+Look-back 30, output 5, their per-location step sizes, contiguous 8:2 split:
+
+| location | RMSE | published | gap | MAE | published | gap |
+|---|---|---|---|---|---|---|
+| Chicago | 42.56 | 40.33 | +5.5% | 31.94 | 29.88 | +6.9% |
+| Victoria | 38.38 | 41.08 | -6.6% | 29.55 | 30.84 | -4.2% |
+| Osnabruck | 38.24 | 36.48 | +4.8% | 28.42 | 27.11 | +4.8% |
+| **average** | **39.73** | **39.30** | **+1.1%** | **29.97** | **29.28** | **+2.4%** |
+
+Gaps scatter in both directions, which is what an independent reimplementation
+looks like. We do not reproduce their whole-trace scaler, which fits before
+splitting.
+
+### 4.2 BG-CFQS - passed, after finding the confound
+
+Under temporal splits the conditional failure reproduced but the risk column did
+not: OverRate 0.391 against their 0.349, risk pass 0/3 against 3/3, while
+accuracy came out *better* than published. That combination was the clue.
+
+Varying only the split:
+
+| split | OverRate | P30 | P10 | risk pass |
+|---|---|---|---|---|
+| temporal | 0.377 | 0.750 | 0.909 | 1/3 |
+| random (exchangeable) | 0.340 | 0.671 | 0.848 | 3/3 |
+| published | 0.349 | 0.65–0.71 | 0.83–0.86 | 3/3 |
+
+Every published quantity lands in range under the exchangeable split. The
+reimplementation is correct and the guarantee is conditional on an assumption a
+deployed terminal does not have.
+
+---
+
+## 5. Findings
+
+### 5.1 The baseline has a hard floor on the achievable risk budget
+
+The strongest result in the project, verified end to end from the primary
+source. BG-CFQS's candidate quantile set is `T = [0.15, 0.40]` (their Table II).
+Their Algorithm 1 collapses the search interval to a point when the budget is
+tighter than the risk at `tau_min`, and the penalised fallback then returns
+`tau_min` regardless of how tight the budget gets.
+
+Measured achieved rate:
+
+| budget | 0.05 | 0.10 | 0.15 | 0.20 | 0.25 | 0.30 | 0.35 |
+|---|---|---|---|---|---|---|---|
+| Chicago | 0.165 | 0.165 | 0.165 | 0.209 | 0.267 | 0.322 | 0.378 |
+| Osnabruck (StarNet) | 0.127 | 0.127 | 0.127 | 0.169 | 0.213 | 0.251 | 0.295 |
+| Victoria | 0.070 | 0.070 | 0.070 | 0.092 | 0.120 | 0.159 | 0.194 |
+| Osnabruck (WetLinks) | 0.185 | 0.185 | 0.185 | 0.244 | 0.297 | 0.349 | 0.405 |
+
+Identical at the three tightest budgets on every dataset, because the method
+returns the same quantile. Their evaluation is at 0.35 only, where the floor
+never binds.
+
+A budget of 0.35 permits over-promising on more than a third of decisions. The
+tighter budgets are the operationally interesting ones, and they are the ones
+the method cannot serve.
+
+### 5.2 Static calibration cannot hold a budget on a LEO link
+
+It misses in whichever direction the drift points:
+
+| dataset | budget | static achieved | online achieved |
+|---|---|---|---|
+| WetLinks Osnabruck | 0.35 | 0.423 (**over**) | 0.351 |
+| StarNet, 3 locations | 0.35 | 0.293 (**under**) | 0.350 |
+
+Across the full sweep the online layer tracks within 1% at every point; static
+is 16 to 21% off. An overshoot drops sessions and an undershoot wastes capacity.
+Neither lets an operator set a budget and get it.
+
+At matched achieved risk the online layer is 10 to 15% better on tail risk *and*
+better on accuracy at every operating point.
+
+### 5.3 Objective O2's premise is not supported
+
+With satellite geometry **measured** rather than reconstructed, conditioning the
+calibration on it is worse than not conditioning at all:
+
+| regime axes | P10 OverRate | vs no conditioning |
+|---|---|---|
+| none | 0.666 | - |
+| visible satellite count | 0.676 | +1.4% |
+| serving elevation | 0.685 | +2.9% |
+| all measured geometry | 0.693 | +4.0% |
+| 15 s scheduling phase | 0.694 | +4.2% |
+
+StarNet reports that these covariates correlate with throughput *level*, and we
+reproduce that. They do not carry *residual* structure, which is what a
+calibration layer needs. The distinction between predicting the level and
+predicting the uncertainty is the finding.
+
+Robust to the learning rate: across seven values spanning two orders of
+magnitude, conditioning beat no conditioning in 8 of 42 cells, seven of them one
+location.
+
+### 5.4 Two negative results, reported in full
+
+**The heterogeneity gate does not work.** We tried to predict which datasets
+benefit from conditioning, using Cochran's Q on calibration-split per-regime
+offsets. It fires everywhere, because with ~1,200 points per regime a 2 Mbps
+difference is significant and `I^2` is scale-free: both hurdles ask whether a
+difference exists, neither asks whether it is worth anything.
+
+**And an earlier claim of ours was wrong.** We reported that offset spread
+predicts the benefit monotonically across four datasets, from a quantity
+computable before test time. Those figures were post-hoc, taken from offsets
+applied *during* the test replay. Recomputed correctly on the calibration split
+the ordering breaks. Withdrawn across the repository, with
+`results/summary/gate-negative-result.md` explaining it.
+
+---
+
+## 6. The demonstration
+
+`scripts/run_demo.py` replays a held-out trace through the full stack one
+decision at a time: look-back window, point forecast, regime assignment, safe
+bound, admitted sessions, congestion flag, then the horizon elapses and the
+outcome is revealed and learned from.
+
+On Victoria, 1,500 decisions at a 0.35 budget: realised risk **0.3187**, mean
+dropped sessions **0.58**, utilisation **0.922**.
+
+It writes an audit trail (`decisions.csv`), a summary, and a self-contained HTML
+page with no network dependencies.
+
+The property the demo exists to show is causality, and it is tested rather than
+asserted: `tests/test_demo.py` overwrites every outcome after a cut point and
+checks the earlier decisions are byte identical.
+
+There is no dish. `ingest/live.py` still raises. This is replay, which is the
+honest form of a live demo.
+
+---
+
+## 7. Contribution boundary
+
+Checked against the literature before writing, not after.
+
+**Not ours.** The StarNet backbone; the BG-CFQS baseline; split conformal;
+adaptive conformal inference (Gibbs and Candes 2021); **running it per covariate
+group, which is GCACI** (Ramalingam, Kiyani and Roth 2025) and independently
+Angelopoulos et al. 2025; the parameter-free version (POGO 2026); online control
+of a user-specified risk (Rolling RC, Feldman et al. 2023); deciding whether to
+condition from data (Clustered Conformal Prediction, Ding et al. 2023; AFCP
+2024); admission control from a safe bound (BG-CFQS eqs. 23–26).
+
+**The project's calibration layer was built independently and is the naive
+special case of GCACI.** For a partition, GCACI's group-membership vector is
+one-hot and its update reduces to one parameter per regime. The methods claim
+this project was designed around is withdrawn in full.
+
+**Ours: the evaluation.** The split-conditionality of the BG-CFQS guarantee, its
+candidate-set floor, the separation of the online mechanism from the
+group-conditional one across four datasets, the negative on satellite geometry,
+and the two negative results in 5.4.
+
+---
+
+## 8. Limitations
+
+- Four datasets, three from one measurement campaign.
+- No live terminal; every result is replay.
+- The online layer's budget control is empirical, not a finite-sample guarantee,
+  and it needs outcome feedback after each decision.
+- `gamma` is a single hand-set constant that should scale with regime count;
+  POGO removes the parameter entirely and is the principled fix.
+- The shrinkage and empirical-Bayes literature was not searched, and it is where
+  the section 5.4 negative most likely has prior work.
+- The WetLinks 15-sample iperf run caps look-back plus horizon at 15, so neither
+  StarNet's 30/5 nor BG-CFQS's 75/15 runs there.
+
+---
+
+## 9. Reproducing everything
+
+```bash
+pytest -q                                       # 176 tests
+
+python scripts/reproduce_starnet.py --location all      # gate 1
+python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2
+python scripts/split_sensitivity.py                     # the split finding
+python scripts/gamma_sensitivity.py                     # learning-rate robustness
+python -m flwcnx.eval.runner --location usa --stride 6  # the full grid
+python scripts/run_demo.py --location canada            # the demonstration
+```
+
+Every run writes `result.json` with a configuration snapshot beside it. Figures
+and summary tables are generated from those files and recompute nothing.
