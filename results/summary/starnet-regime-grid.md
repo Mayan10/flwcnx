@@ -104,10 +104,41 @@ each regime only receives feedback on the decisions routed to it. Splitting
 for the update rule to settle before the test split ends. The per-regime alpha
 noise then exceeds the conditional signal it was meant to capture.
 
-This is why the two mechanisms composed on WetLinks and conflict here. On
-WetLinks the winning partition was `level+candidates`: 12 regimes over 13,530
-decisions, about 1,100 outcomes each. That is above the threshold. The StarNet
-grid mostly is not.
+**Correction, same day.** The paragraph above explains the *gradient within*
+StarNet, where 51 regimes do worse than 4. It does **not** explain the
+difference between the datasets, and the first version of this file wrongly
+claimed it did. StarNet's `level` partition has 4 regimes and about 5,179
+outcomes each, five times more than the WetLinks partition that worked, and it
+still fails. Starvation cannot be the reason.
+
+The actual reason is simpler and is measurable directly: **on most of these
+traces there is nothing to condition on.** The spread of the fitted per-regime
+offset across the `level` buckets, which is what the layer exists to exploit:
+
+| dataset | offset spread across regimes | effect of conditioning on P10 |
+|---|---|---|
+| StarNet USA | 1.85 Mbps | **+6.1%** (hurts) |
+| StarNet Germany | 5.44 Mbps | +0.1% (neutral) |
+| StarNet Canada | 11.30 Mbps | -1.7% (helps) |
+| WetLinks Osnabruck | 9.28 Mbps | -5.6% (helps) |
+
+The ordering is monotonic. On the US trace the four level buckets want offsets
+of -10.69, -11.91, -10.06 and -10.99 Mbps: the residual distribution is
+effectively identical everywhere, so conditioning can only add estimation noise,
+and that is exactly the +6.1% observed.
+
+So the rule is not about how much data each regime gets. It is about whether the
+regimes differ at all. Data volume decides how *precisely* a per-regime offset
+can be estimated; offset spread decides whether there is anything worth
+estimating. Both have to clear, and on the US trace the second one does not.
+
+**This is directly actionable and should be the next thing built.** The spread
+is computable on the calibration split, before any test decision is made, and it
+predicts the sign of the effect on all four datasets here. A layer that measures
+it and falls back to global conditioning when the spread does not exceed its own
+estimation noise would have avoided the loss on the US and Germany traces while
+keeping the gain on Canada and WetLinks. That turns this negative result into a
+gate rather than a caveat.
 
 **The practical rule this suggests**, and it should be tested rather than
 assumed: the online layer needs a coarser partition than the static layer, and

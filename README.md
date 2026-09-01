@@ -55,11 +55,22 @@ conditioning at all:
 | 15 s phase | 0.6944 | +4.2% |
 | all four brief axes | 0.7085 | +6.3% |
 
-The cause is specific and measurable: per-regime *online* calibration must
-converge one operating point per regime from a feedback stream, and splitting
-20,714 decisions across 51 regimes leaves ~400 each. Correlation between
-log10(outcomes per regime) and P10 is -0.571. In the *static* setting
-conditioning still helps by about 3%.
+The cause is measurable and it is not data volume. It is that on most of these
+traces the regimes do not differ. The spread of the fitted per-regime offset
+predicts the sign of the effect on all four datasets:
+
+| dataset | offset spread | effect on P10 |
+|---|---|---|
+| StarNet USA | 1.85 Mbps | +6.1% (hurts) |
+| StarNet Germany | 5.44 Mbps | +0.1% |
+| StarNet Canada | 11.30 Mbps | -1.7% (helps) |
+| WetLinks | 9.28 Mbps | -5.6% (helps) |
+
+On the US trace the four level buckets want offsets within 1.85 Mbps of each
+other, so conditioning adds estimation noise and nothing else. A second, weaker
+effect explains the gradient *within* StarNet, where finer partitions do worse:
+splitting 20,714 decisions across 51 regimes leaves ~400 each, and the
+correlation between log10(outcomes per regime) and P10 is -0.571.
 
 **Objective O2's premise is not supported.** Measured serving-satellite
 elevation, distance and candidate count did not improve conditional risk
