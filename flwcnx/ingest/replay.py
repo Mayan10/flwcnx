@@ -70,6 +70,22 @@ COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
 # From the StarNet paper, reproduced in CLAUDE.md section 5. The loader checks
 # itself against these. A loader that reads the wrong column makes every number
 # downstream meaningless, and this is the cheapest place to catch it.
+#
+# **These describe the collection, not the released file.** Verified against the
+# actual release on 2026-09-01: Canada and Germany match exactly (145,053 and
+# 613,295 samples, 3,166 and 3,956 satellites), but the released US
+# `dataset_tp_sat.pkl` holds 1,123,832 samples, not the 2,475,163 the paper
+# reports collecting. The subset is not arbitrary and is not a truncated
+# download:
+#
+#   * 1,123,832 is exactly the CHI sample count BG-CFQS report processing;
+#   * (1,123,832 - 45) / 46 + 1 = 24,430, exactly the US data-point count
+#     StarNet report training on at sequence length 45 and step 46.
+#
+# So the released file *is* their training set, and the collection figure counts
+# raw measurement minutes that never reached it. Checking a loader against the
+# wrong one of those two numbers produces a permanent false alarm, which is how
+# a self check stops being read.
 PUBLISHED_STATS: dict[str, dict[str, float]] = {
     "usa": {
         "trace_minutes": 41252, "samples": 2475163,
@@ -83,6 +99,25 @@ PUBLISHED_STATS: dict[str, dict[str, float]] = {
         "trace_minutes": 10221, "samples": 613295,
         "unique_satellites": 3956, "handovers": 26782,
     },
+}
+
+
+#: What the *released* per-location `dataset_tp_sat.pkl` actually contains, as
+#: opposed to what the paper reports collecting. This is what `verify` checks,
+#: because it is the file the loader is being asked to read. Canada and Germany
+#: are unchanged from PUBLISHED_STATS; only the US differs, for the reason
+#: documented above.
+#:
+#: `handovers` is deliberately absent. The published counts (86,808 / 7,257 /
+#: 26,782) come from their measurement tooling operating on the raw collection,
+#: and a serving-satellite change counted on the cleaned per-second file lands
+#: about 5% high on both locations where the sample count matches exactly. That
+#: is a difference in what is being counted, not a loader fault, and asserting
+#: on it would fail forever.
+RELEASED_FILE_STATS: dict[str, dict[str, float]] = {
+    "usa": {"samples": 1123832, "unique_satellites": 5723},
+    "canada": {"samples": 145053, "unique_satellites": 3166},
+    "germany": {"samples": 613295, "unique_satellites": 3956},
 }
 
 
@@ -278,8 +313,10 @@ class ReplaySource(Source):
         download will fail it and that is worth seeing rather than crashing on.
         """
         observed = self.describe()
-        published = PUBLISHED_STATS.get(self.location, {})
-        report: dict[str, object] = {"location": self.location, "checks": {}, "passed": True}
+        # The released file, not the collection. See RELEASED_FILE_STATS.
+        published = RELEASED_FILE_STATS.get(self.location, {})
+        report: dict[str, object] = {"location": self.location, "checks": {}, "passed": True,
+                                     "reference": "released dataset_tp_sat.pkl"}
         for key, expected in published.items():
             got = float(observed.get(key, float("nan")))
             rel = abs(got - expected) / expected if expected else float("inf")
@@ -290,4 +327,7 @@ class ReplaySource(Source):
             }
             report["passed"] = bool(report["passed"] and ok)
         report["observed"] = observed
+        # Carried alongside so the collection figures stay visible without
+        # being asserted on. For the US these differ by design.
+        report["collection_stats"] = PUBLISHED_STATS.get(self.location, {})
         return report
