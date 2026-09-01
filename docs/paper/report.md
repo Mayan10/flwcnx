@@ -109,7 +109,7 @@ Varying only the split:
 |---|---|---|---|---|
 | temporal | 0.377 | 0.750 | 0.909 | 1/3 |
 | random (exchangeable) | 0.340 | 0.671 | 0.848 | 3/3 |
-| published | 0.349 | 0.65–0.71 | 0.83–0.86 | 3/3 |
+| published | 0.349 | 0.65 to 0.71 | 0.83 to 0.86 | 3/3 |
 
 Every published quantity lands in range under the exchangeable split. The
 reimplementation is correct and the guarantee is conditional on an assumption a
@@ -231,7 +231,7 @@ group, which is GCACI** (Ramalingam, Kiyani and Roth 2025) and independently
 Angelopoulos et al. 2025; the parameter-free version (POGO 2026); online control
 of a user-specified risk (Rolling RC, Feldman et al. 2023); deciding whether to
 condition from data (Clustered Conformal Prediction, Ding et al. 2023; AFCP
-2024); admission control from a safe bound (BG-CFQS eqs. 23–26).
+2024); admission control from a safe bound (BG-CFQS eqs. 23 to 26).
 
 **The project's calibration layer was built independently and is the naive
 special case of GCACI.** For a partition, GCACI's group-membership vector is
