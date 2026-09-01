@@ -32,7 +32,9 @@ import numpy as np
 import pandas as pd
 
 from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
+from flwcnx.calibrate.baselines_online import GCACI, RollingRC
 from flwcnx.calibrate.conformal import fit_conformal
+from flwcnx.calibrate.heterogeneity import GatedCalibrator
 from flwcnx.calibrate.regime_cal import RegimeCalibrator, global_calibrator
 from flwcnx.config import (
     CalibrationConfig,
@@ -76,6 +78,9 @@ BACKBONES = ("starnet", "starnet_no_pe", "starnet_no_attn", "dlinear", "patchtst
 ALL_METHODS: tuple[str, ...] = (
     "point", "global_conformal", "regime_conformal", "regime_bgcfqs",
     "adaptive_global_conformal", "adaptive_regime_conformal",
+    # Published online baselines and the gated form of our layer. See
+    # docs/novelty-review.md for why gcaci in particular has to be here.
+    "gcaci", "rolling_rc", "gated_adaptive",
 )
 EPSILON_SWEEP = (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35)
 
@@ -326,6 +331,36 @@ def _calibrate_and_score(method: str, calibration_config: CalibrationConfig,
             result.regime_tables[f"trace_{key.replace('|', '_').replace('=', '')}"] = (
                 online.trace.to_frame()
             )
+    elif method in ("gcaci", "rolling_rc"):
+        # Published online baselines. Both are reproductions; see
+        # calibrate/baselines_online.py for attribution. GCACI in particular is
+        # the paper that closed this project's methods claim, so its absence
+        # from the table would be the first thing a reviewer asked about.
+        axes = calibration_config.regime.axes
+        assigner = (RegimeAssigner(calibration_config.regime).fit(train_set.regime)
+                    if axes else None)
+        cls = GCACI if method == "gcaci" else RollingRC
+        baseline = cls(config=calibration_config, assigner=assigner, direction=direction)
+        baseline.fit(predicted_cal, actual_cal, calibration_set.regime)
+        lower = baseline.transform_online(predicted_test, actual_test, test_set.regime)
+        detail = baseline.summary()
+        calibrator = None
+    elif method == "gated_adaptive":
+        # The heterogeneity gate in front of our own online layer: condition on
+        # regimes only when the calibration split says the regimes differ.
+        axes = calibration_config.regime.axes
+        assigner = (RegimeAssigner(calibration_config.regime).fit(train_set.regime)
+                    if axes else None)
+
+        def _factory(cfg, asg):
+            return AdaptiveRegimeCalibrator(config=cfg, assigner=asg, direction=direction)
+
+        gated = GatedCalibrator(config=calibration_config, assigner=assigner,
+                                direction=direction, factory=_factory)
+        gated.fit(predicted_cal, actual_cal, calibration_set.regime)
+        lower = gated.transform_online(predicted_test, actual_test, test_set.regime)
+        detail = gated.summary()
+        calibrator = None
     elif method == "point":
         # The uncalibrated forecaster, so the risk metrics have a floor to be
         # measured against. StarNet-point in the BG-CFQS table is this.
