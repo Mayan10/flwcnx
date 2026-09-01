@@ -1,6 +1,6 @@
 # Predictive Bandwidth Allocation for Starlink Access Links
 
-Project report. Mayan Sharma.
+Project report. Mayan Sharma, Kriti Saini, Devansh Behl.
 
 ---
 
@@ -238,10 +238,25 @@ special case of GCACI.** For a partition, GCACI's group-membership vector is
 one-hot and its update reduces to one parameter per regime. The methods claim
 this project was designed around is withdrawn in full.
 
-**Ours: the evaluation.** The split-conditionality of the BG-CFQS guarantee, its
-candidate-set floor, the separation of the online mechanism from the
-group-conditional one across four datasets, the negative on satellite geometry,
-and the two negative results in 5.4.
+**Ours: five findings, all empirical.** Novelty here is novelty of knowledge
+rather than of algorithm, and each of these is unreported as far as we could
+establish:
+
+1. BG-CFQS cannot serve a budget below its candidate set's low end; the achieved
+   rate pins, on all four datasets, by up to 3.7x at the tightest budget.
+2. Its risk guarantee is an artifact of an exchangeable split: 3/3 under random,
+   1/3 under temporal.
+3. Measured satellite geometry predicts throughput *level* but carries no
+   *residual* structure, so it is useless for risk control. This is objective
+   O2, answered in the negative.
+4. Static calibration misses its budget in both directions, with the sign set by
+   the drift rather than the method.
+5. Two negative results on predicting when group conditioning helps, reported
+   with their mechanisms.
+
+The first is the strongest: it is a defect in a published method, derived from
+its algorithm, confirmed against its parameter table, measured on four datasets,
+and checkable by a reader in ten minutes.
 
 ---
 

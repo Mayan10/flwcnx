@@ -1,6 +1,6 @@
 # When Does Risk-Controlled Throughput Forecasting Actually Control Risk? A Reproduction Study on LEO Satellite Links
 
-Mayan Sharma
+Mayan Sharma, Kriti Saini, Devansh Behl
 
 ---
 
@@ -37,9 +37,12 @@ than not conditioning at all. We attempted to predict which datasets benefit,
 from a statistic computable on the calibration split, and failed. We report
 that failure in full.
 
-**We make no methods contribution.** Group-conditional adaptive conformal
-inference is published as GCACI; the conditioning-decision idea is published as
-Clustered Conformal Prediction. This is a reproduction and evaluation study.
+**What is new here is empirical, not algorithmic.** The candidate-set floor,
+the split-conditionality of the guarantee, the failure of measured satellite
+geometry to carry residual structure, and the two negative results are, to our
+knowledge, unreported. The *mechanisms* we evaluate are all published, and
+Section 6 says which paper each comes from. We claim the findings, not the
+methods.
 
 ---
 
@@ -63,20 +66,56 @@ deployed terminal actually operates in, and what the remedies cost. We do not
 propose a method. Both mechanisms we evaluate are published, and Section 6 is
 explicit about which paper each comes from.
 
-**Contributions.**
+### 1.1 What is new in this paper
 
-1. A reproduction of BG-CFQS on its own three traces, which passes, and an
-   identification of the calibration split as the condition its risk guarantee
-   depends on (Section 4.1).
-2. A structural limitation in the published method: budgets tighter than the low
-   end of its candidate quantile set are unservable, and the achieved rate pins
-   (Section 4.2). Verified from its Algorithm 1 and Table II.
-3. An evaluation of group-conditional online recalibration across four datasets,
-   separating the online mechanism, which works, from the group-conditional one,
-   which mostly does not (Section 5).
-4. A negative result on predicting when conditioning will help (Section 5.4),
-   reported because the alternative is that someone else spends the same
-   effort.
+Novelty in a measurement paper is novelty of *knowledge*, not of algorithm. Each
+of the following is, to our knowledge, unreported, and each is a fact about
+published methods or about LEO links that was not previously on record. We
+searched for prior work on all five before claiming them; Section 6 gives the
+full prior-art accounting, including what we found *and* what closed off.
+
+1. **BG-CFQS cannot serve a risk budget below the low end of its candidate
+   quantile set.** The achieved overestimation rate is identical at budgets of
+   0.05, 0.10 and 0.15 on all four datasets, overshooting by up to 3.7x, because
+   the selection interval collapses and the method returns the same quantile.
+   Derived from their Algorithm 1, confirmed against their Table II, and
+   measured. Their own evaluation is conducted at a single budget where the
+   floor never binds, so it cannot surface. **This is the strongest result in
+   the paper and it is checkable by a reader in ten minutes.** (Section 4.2)
+
+2. **The method's risk guarantee is an artifact of an exchangeable calibration
+   split.** We recover every published quantity under a random split, including
+   the risk-pass column at 3/3, and 1/3 under a contiguous temporal split. That
+   split conformal degrades under non-exchangeability is textbook; that *this
+   method, on these traces, moves from 3/3 to 1/3* is not on record, and it is
+   the difference between the method working and not working in deployment.
+   (Section 4.1)
+
+3. **Measured serving-satellite geometry predicts throughput level but not
+   residual structure.** StarNet establishes that elevation, distance and
+   visible-satellite count correlate with throughput, and we reproduce that.
+   We show they carry no information about the forecaster's *uncertainty*:
+   conditioning a calibration layer on them is worse than not conditioning at
+   all, on all three of their own traces. The level/residual distinction is not
+   drawn for these features anywhere we could find, and it is what determines
+   whether the covariates are useful for risk control. (Section 5.3)
+
+4. **Static calibration misses a risk budget in both directions on LEO links,
+   with the sign set by the drift.** It overshoots on one dataset and
+   undershoots by a fifth on another. The undershoot half is under-reported in a
+   literature that emphasises under-coverage, and it is not a safe failure: it
+   silently withholds capacity the operator said it would risk. (Section 5.2)
+
+5. **A negative result on predicting when group conditioning helps.** The
+   intuition that measurable heterogeneity predicts benefit is appealing and
+   cheap to implement. It is wrong on our data, in two independent ways, and we
+   report the failure with the mechanism. (Section 5.4)
+
+**What we do not claim.** The two mechanisms evaluated here are both published:
+group-conditional online recalibration is GCACI, and deciding whether to
+condition from data is Clustered Conformal Prediction. Our implementation of the
+former was written independently and is its naive special case. We include both
+as baselines rather than presenting either as ours.
 
 ---
 
@@ -365,10 +404,18 @@ and is the naive special case of GCACI: for a partition, GCACI's group
 membership vector is one-hot and its update reduces to one parameter per regime.
 We include GCACI and Rolling RC as baselines.
 
-**What this paper contributes is evaluation**: the split-conditionality of the
-BG-CFQS guarantee, its candidate-set floor, the separation of the online and
-group-conditional mechanisms across four datasets, and two negative results
-reported in full.
+**What this paper contributes is the five findings in Section 1.1.** They are
+new knowledge, not new machinery: a structural limitation in a published method
+that its own evaluation cannot surface, the condition its guarantee depends on,
+a covariate class that predicts level but not uncertainty, a two-directional
+failure of static calibration, and two negatives.
+
+We were careful about this distinction because we got it wrong first. The
+project was designed around a per-regime calibration layer believed to be novel,
+and that belief survived until it was checked against the literature rather than
+against our own reading of two papers. The check cost a day and removed the
+methods claim entirely. We record that here because the temptation in a project
+like this is to check late, or to check in a way that confirms.
 
 ---
 

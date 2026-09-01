@@ -42,5 +42,5 @@ that comes out of it.
 Thank you for making the tooling and the models public in the first place.
 
 Best regards,
-Mayan Sharma
+Mayan Sharma, Kriti Saini, Devansh Behl
 mayan25sharma@gmail.com

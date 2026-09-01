@@ -5,7 +5,7 @@ pasted whole into an assistant with no other context, to generate slides and a
 report.
 
 Project: **Predictive bandwidth allocation for Starlink (LEO satellite) access
-links.** Student: Mayan Sharma. Repository: `flwcnx`.
+links.** Students: Mayan Sharma, Kriti Saini, Devansh Behl. Repository: `flwcnx`.
 
 Rubric covered: Domain/Problem Statement (5), Literature Review (5, min. 15
 recent papers), Design of Proposed Methodology (5), Module Description /
