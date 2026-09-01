@@ -17,7 +17,7 @@ per regime, updating each from outcomes as they are observed. This was written
 believing only the marginal single-alpha version (Gibbs and Candes 2021) was in
 print.
 
-That is wrong. **Group Conditional ACI (GCACI)**, Ramalingam et al. 2025,
+That is wrong. **Group Conditional ACI (GCACI)**, Ramalingam, Kiyani and Roth 2025,
 arXiv:2502.10947, "The Relationship between No-Regret Learning and Online
 Conformal Prediction", generalises ACI to group-conditional guarantees. Quoting
 the description in arXiv:2606.00419:

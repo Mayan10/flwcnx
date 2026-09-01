@@ -35,7 +35,7 @@ component exactly as the GRU backbone is.
 only the marginal single-alpha version was in print. That was wrong, and the
 correction is recorded rather than quietly absorbed:
 
-- **GCACI**, Ramalingam et al. 2025 (arXiv:2502.10947), already generalises ACI
+- **GCACI**, Ramalingam, Kiyani and Roth 2025 (arXiv:2502.10947), generalises ACI
   to group-conditional guarantees, with an FTRL formulation that carries a
   finite-time group-coverage bound. What this module does is the naive special
   case of that, with no bound.

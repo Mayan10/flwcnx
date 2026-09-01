@@ -218,16 +218,62 @@
 % per-group adaptive conformal method we independently rebuilt, and POGO
 % removes the learning rate our implementation still needs.
 @article{ramalingam2025noregret,
-  author  = {Ramalingam, Ramya and Gupta, Varun and Roth, Aaron},
+  author  = {Ramalingam, Ramya and Kiyani, Shayan and Roth, Aaron},
   title   = {The Relationship between No-Regret Learning and Online Conformal Prediction},
   journal = {arXiv preprint arXiv:2502.10947},
   year    = {2025}
 }
 
-@article{pogo2026,
+@article{bharti2026pogo,
+  author  = {Bharti, Beepul and Pal, Ambar and Teneggi, Jacopo and Sulam, Jeremias},
   title   = {Parameter-Free and Group Conditional Online Conformal Prediction},
   journal = {arXiv preprint arXiv:2606.00419},
   year    = {2026}
+}
+
+@inproceedings{ding2023clustered,
+  author    = {Ding, Tiffany and Angelopoulos, Anastasios N. and Bates, Stephen
+               and Jordan, Michael I. and Tibshirani, Ryan J.},
+  title     = {Class-Conditional Conformal Prediction with Many Classes},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  note      = {arXiv:2306.09335. Clustered Conformal Prediction. The closest
+               prior art to this project's heterogeneity gate: it measures
+               per-group calibration quantiles and pools groups whose quantiles
+               are similar, and states the estimation-noise observation the
+               project rediscovered.},
+  year      = {2023}
+}
+
+@techreport{vovk2003mondrian,
+  author      = {Vovk, Vladimir and Lindsay, David and Nouretdinov, Ilia
+                 and Gammerman, Alex},
+  title       = {Mondrian Confidence Machine},
+  institution = {Royal Holloway, University of London},
+  note        = {The origin of one conformal operating point per partition cell.
+                 Per-regime calibration is Mondrian conformal prediction.},
+  year        = {2003}
+}
+
+@article{feldman2023rollingrc,
+  author  = {Feldman, Shai and Ringel, Liran and Bates, Stephen and Romano, Yaniv},
+  title   = {Achieving Risk Control in Online Learning Settings},
+  journal = {Transactions on Machine Learning Research (TMLR)},
+  note    = {arXiv:2205.09095. Rolling RC. Online control of a user-specified
+             risk under arbitrary drift, which is what this project's
+             calibration layer does. The most important missing baseline.},
+  year    = {2023}
+}
+
+@article{angelopoulos2025gradient,
+  author  = {Angelopoulos, Anastasios N. and Jordan, Michael I. and Tibshirani, Ryan J.},
+  title   = {Gradient Equilibrium in Online Learning},
+  journal = {Journal of Machine Learning Research},
+  volume  = {26},
+  number  = {305},
+  note    = {arXiv:2501.08330. Concurrent and independent discovery of the
+             group-conditional generalisation of ACI, roughly one month before
+             Ramalingam et al.},
+  year    = {2025}
 }
 
 @inproceedings{afcp2024,
