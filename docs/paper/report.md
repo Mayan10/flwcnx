@@ -272,6 +272,12 @@ and checkable by a reader in ten minutes.
   the section 5.4 negative most likely has prior work.
 - The WetLinks 15-sample iperf run caps look-back plus horizon at 15, so neither
   StarNet's 30/5 nor BG-CFQS's 75/15 runs there.
+- Every reported number was computed on a single machine. Continuous integration
+  across three Python versions on Linux was added afterwards and immediately
+  found a datetime-resolution bug that the local suite could not see. The
+  affected code path was the correct one on the machine the results were
+  produced on, so the numbers stand, but no result here has independent hardware
+  confirmation. `docs/limitations.md` section 4b.
 
 ---
 

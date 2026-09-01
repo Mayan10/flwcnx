@@ -139,6 +139,35 @@ proxy.
   do not reproduce that leak, so a small shortfall against their published
   numbers is expected rather than alarming.
 
+## 4b. Results were computed on one machine, and one bug from that was caught
+
+Added 2026-09-02, when CI was set up and immediately failed.
+
+Every number in this project was produced on a single macOS machine with one
+pinned set of library versions. Adding CI on Linux across Python 3.11, 3.12 and
+3.13 surfaced a defect on the first run that 176 local tests had not:
+
+`Series.astype("int64")` on a pandas datetime column returns the count in
+whatever resolution that column carries, and pandas 2 supports seconds,
+milliseconds, microseconds and nanoseconds. Four call sites divided that by 1e9
+and assumed nanoseconds. Locally the columns were nanoseconds and everything
+worked; on the runner they were not, the scheduling-phase aliasing guard
+inverted its answer, and thirteen tests failed.
+
+Fixed in `flwcnx/timeutil.py` with regression tests at all four resolutions.
+
+**What this implies for the reported results, stated rather than assumed.** The
+runs behind `results/summary/` were executed before the fix, on the machine
+where the columns were nanoseconds, so the code path they took was the correct
+one and the numbers are unaffected. That is an argument, not a re-run: they have
+not been recomputed on a second machine, and no result in this project has
+independent hardware confirmation.
+
+A second defect surfaced in the same run: `scikit-learn` had been removed from
+the dependencies by a static import audit, and it is genuinely required because
+`xgb.XGBRegressor` is xgboost's scikit-learn API. It was present locally as a
+transitive dependency. An import audit cannot see that, and CI could.
+
 ## 5. Things this system does not do
 
 - No live terminal. `LiveSource.connect` raises.
