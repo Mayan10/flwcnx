@@ -3,16 +3,35 @@
 `results/` is gitignored except this directory. Anything here is a real run
 with its config snapshot inside the JSON or named in the markdown.
 
-## Final runs
+## Read these first
 
 | file | what it is |
 |---|---|
-| `osnabruck-capacity.md` | the headline run: full budget sweep, eight regime granularities, six calibration methods, 13,530 test decisions |
-| `cross-site-enschede.md` | leave-one-location-out, forecaster trained on Osnabruck only |
-| `backbones.md` | the same calibration layer over five other forecast backbones |
+| `starnet-regime-grid.md` | **the main result.** Three locations, measured satellite geometry, budget sweep, nine granularities. Online recalibration replicates and dominates; regime conditioning does not. |
+| `phase1-starnet-gate.md` | Phase 1 gate, passed. Average within 1.1% RMSE and 2.4% MAE of published. |
+| `phase2-bgcfqs-gate.md` | Phase 2 gate, passed, and the split sensitivity finding that was needed to pass it. |
 
-Read `osnabruck-capacity.md` first. The other two exist to answer "does this
-depend on the site" and "does this depend on the backbone".
+`starnet-regime-grid.md` and `osnabruck-capacity.md` **disagree about the
+regime layer**. That is the honest state of the project and both are kept.
+Neither is the "real" one.
+
+## StarNet runs
+
+| file | what it is |
+|---|---|
+| `starnet-usa.md`, `starnet-germany.md`, `starnet-canada.md` | per location detail behind the grid summary |
+| `phase-recovery-crossover.md` | Casparsen's 15 s offset recovered independently on three continents |
+
+## WetLinks runs
+
+Still valid, and no longer the primary path. They were the only way to make
+progress while the traces were unavailable.
+
+| file | what it is |
+|---|---|
+| `osnabruck-capacity.md` | full budget sweep on the per-second iperf release, 13,530 test decisions |
+| `cross-site-enschede.md` | leave-one-location-out, forecaster trained on Osnabruck only |
+| `backbones.md` | the same calibration layer over six forecast backbones |
 
 ### Resolved: the worst-regime discrepancy from the pilots
 
