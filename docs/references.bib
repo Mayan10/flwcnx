@@ -282,3 +282,98 @@
   note      = {arXiv:2405.15106},
   year      = {2024}
 }
+
+% ---------------------------------------------------------------------------
+% Added 2026-09-02 in the final citation audit. Each of these is cited in
+% docs/paper/paper.md, docs/paper/report.md or in the source, and each was
+% missing from this file.
+% ---------------------------------------------------------------------------
+
+% Cited in paper section 4.1: that split conformal degrades under
+% non-exchangeability is textbook, and this is the textbook.
+@article{barber2023beyond,
+  author  = {Barber, Rina Foygel and Cand{\`e}s, Emmanuel J. and Ramdas, Aaditya
+             and Tibshirani, Ryan J.},
+  title   = {Conformal Prediction Beyond Exchangeability},
+  journal = {The Annals of Statistics},
+  volume  = {51},
+  number  = {2},
+  pages   = {816--845},
+  year    = {2023}
+}
+
+@article{oliveira2024split,
+  author  = {Oliveira, Roberto I. and Orenstein, Paulo and Ramos, Thiago
+             and Romano, Jo{\~a}o Vitor},
+  title   = {Split Conformal Prediction and Non-Exchangeable Data},
+  journal = {Journal of Machine Learning Research},
+  volume  = {25},
+  number  = {225},
+  year    = {2024}
+}
+
+% The prior art on the application, found by the independent novelty review:
+% conformal risk control for radio resource allocation. Same shape as this
+% project, different link layer.
+@article{cohen2023urllc,
+  author  = {Cohen, Kfir M. and Park, Sangwoo and Simeone, Osvaldo
+             and Shamai Shitz, Shlomo},
+  title   = {Guaranteed Dynamic Scheduling of Ultra-Reliable Low-Latency Traffic
+             via Conformal Prediction},
+  journal = {arXiv preprint arXiv:2302.07675},
+  year    = {2023}
+}
+
+@article{cohen2022calibrating,
+  author  = {Cohen, Kfir M. and Park, Sangwoo and Simeone, Osvaldo
+             and Shamai Shitz, Shlomo},
+  title   = {Calibrating AI Models for Wireless Communications via Conformal
+             Prediction},
+  journal = {arXiv preprint arXiv:2212.07775},
+  year    = {2022}
+}
+
+% The heterogeneity test in flwcnx/calibrate/heterogeneity.py. Cochran gives the
+% statistic, Higgins and Thompson the effect size that accompanies it. Both are
+% from meta-analysis and both predate every conformal paper in this file.
+@article{cochran1954combination,
+  author  = {Cochran, William G.},
+  title   = {The Combination of Estimates from Different Experiments},
+  journal = {Biometrics},
+  volume  = {10},
+  number  = {1},
+  pages   = {101--129},
+  year    = {1954}
+}
+
+@article{higgins2002quantifying,
+  author  = {Higgins, Julian P. T. and Thompson, Simon G.},
+  title   = {Quantifying Heterogeneity in a Meta-Analysis},
+  journal = {Statistics in Medicine},
+  volume  = {21},
+  number  = {11},
+  pages   = {1539--1558},
+  year    = {2002}
+}
+
+% The standard error of an empirical quantile, used to weight Cochran's Q in
+% flwcnx/calibrate/heterogeneity.py.
+@article{siddiqui1960distribution,
+  author  = {Siddiqui, M. M.},
+  title   = {Distribution of Quantiles in Samples from a Bivariate Population},
+  journal = {Journal of Research of the National Bureau of Standards},
+  volume  = {64B},
+  pages   = {145--150},
+  year    = {1960}
+}
+
+% SGP4, used to propagate orbital elements for the reconstructed geometry on the
+% WetLinks path (flwcnx/ingest/tle.py).
+@techreport{vallado2006revisiting,
+  author      = {Vallado, David A. and Crawford, Paul and Hujsak, Richard
+                 and Kelso, T. S.},
+  title       = {Revisiting Spacetrack Report \#3},
+  institution = {AIAA/AAS Astrodynamics Specialist Conference},
+  note        = {AIAA 2006-6753. The SGP4 reference implementation.},
+  year        = {2006}
+}

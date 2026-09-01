@@ -1,0 +1,44 @@
+name: CI
+
+# The badges in README.md point at this workflow. They are meant to report
+# something real, so this runs the same two commands the project is developed
+# against: ruff for lint, pytest for the suite. Neither needs the datasets,
+# because every test runs on synthetic fixtures by design.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: lint and test (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check flwcnx scripts tests
+
+      - name: Test
+        # Synthetic fixtures only. No dataset is downloaded in CI, and none of
+        # the reported results are produced here; those come from the runs
+        # recorded under results/summary/.
+        run: pytest -q

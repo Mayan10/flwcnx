@@ -1,11 +1,22 @@
 # flwcnx
 
-Predictive bandwidth allocation for Starlink (LEO satellite) access links.
+**Risk-controlled throughput forecasting and bandwidth allocation for Starlink
+(LEO satellite) access links.**
+
+[![CI](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml/badge.svg)](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Tests](https://img.shields.io/badge/tests-176%20passing-brightgreen.svg)](tests/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![Reproduction gates](https://img.shields.io/badge/reproduction%20gates-2%2F2%20passed-brightgreen.svg)](docs/paper/report.md#4-reproduction-gates)
+
+Mayan Sharma, Kriti Saini, Devansh Behl
+
+---
 
 The system forecasts downlink throughput one horizon ahead, converts that point
 forecast into a *safe lower bound* whose overestimation rate is held at a stated
-risk budget inside each operating regime, and drives admission control and
-congestion alerts from that bound.
+risk budget, and drives admission control and congestion alerts from that bound.
 
 Three of the six problems in the brief are addressed, chosen because they chain
 into a single system rather than three disconnected models:
@@ -14,6 +25,20 @@ into a single system rather than three disconnected models:
 2. Detect congestion before users are affected (derived from the bound, not a
    separate classifier).
 3. Optimize bandwidth allocation automatically (the decision layer).
+
+## Read this first
+
+| | |
+|---|---|
+| **Paper** | [`docs/paper/paper.md`](docs/paper/paper.md) - the reproduction and evaluation study, with the five findings in section 1.1 |
+| **Report** | [`docs/paper/report.md`](docs/paper/report.md) - the whole system, the four objectives, and how the data was obtained |
+| **Results** | [`results/summary/`](results/summary/) - every committed table, each traceable to a run with its config snapshot |
+| **Limitations** | [`docs/limitations.md`](docs/limitations.md) - written while building, not retrofitted |
+| **Novelty audit** | [`docs/novelty-review.md`](docs/novelty-review.md) - independent literature check that withdrew our methods claim |
+
+**What is new here is empirical, not algorithmic.** The mechanisms evaluated in
+this project are all published and are cited as such. The findings are ours.
+See [Contribution boundary](#contribution-boundary).
 
 ## The result
 
@@ -211,24 +236,6 @@ python scripts/download_data.py --inspect data/supplied
 python scripts/fetch_elements.py            # Space-Track, needs .env credentials
 ```
 
-## Running
-
-```bash
-pytest -q                                   # 146 tests, synthetic fixtures only
-
-# the headline run: full budget sweep and regime ablation, ~25 min on MPS
-python scripts/run_wetlinks.py --release seconds --site Osnabruck --geometry \
-    --epochs 30 --stride 1 --output results/final
-
-# cross site: train on one dish, hold out the other entirely
-python scripts/run_cross_site.py --held-out Enschede --geometry --epochs 30
-
-# figures and the committed markdown tables, from a saved run
-python scripts/make_figures.py results/final/wetlinks-seconds-Osnabruck-capacity
-python scripts/make_summary.py results/final/wetlinks-seconds-Osnabruck-capacity \
-    --out results/summary/osnabruck-capacity.md
-```
-
 ## Status and what is not done
 
 - **The reproduction gates were never run.** StarNet's RMSE/MAE table and
@@ -246,3 +253,51 @@ python scripts/make_summary.py results/final/wetlinks-seconds-Osnabruck-capacity
 
 `docs/limitations.md` is the long version and is written to be read before the
 results, not after.
+
+## Reproducing every number
+
+Every table in the paper, the report and `results/summary/` comes from one of
+these. Each run writes `result.json` with a configuration snapshot beside it;
+the figure and table generators recompute nothing.
+
+```bash
+pytest -q                                               # 176 tests, synthetic fixtures
+
+python scripts/reproduce_starnet.py --location all      # gate 1: StarNet accuracy
+python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2: BG-CFQS risk table
+python scripts/split_sensitivity.py                     # the exchangeability finding
+python scripts/gamma_sensitivity.py                     # learning-rate robustness
+python -m flwcnx.eval.runner --location usa --stride 6  # the full calibration grid
+python scripts/run_cross_site.py --held-out Enschede    # cross-site holdout
+python scripts/run_demo.py --location canada            # the live replay demo
+
+# the WetLinks path, which is how the project ran before the traces arrived
+python scripts/run_wetlinks.py --release seconds --site Osnabruck --geometry \
+    --epochs 30 --stride 1 --output results/final
+
+python scripts/make_figures.py <run-dir>                # figures from a saved run
+python scripts/make_summary.py <run-dir> --out <file>   # committed markdown tables
+python scripts/compare_backbones.py <run-dirs> --out <file>
+```
+
+Seeded throughout (default 1337) and the seed is recorded in every result file.
+
+## Citing
+
+If you use this code or its findings, see [`CITATION.cff`](CITATION.cff). Please
+also cite the work being evaluated:
+
+- **StarNet** (traces and forecast backbone): Liu, Reidys, Tanveer and Vasisht,
+  *Vivisecting Starlink Throughput*, Proc. ACM Netw. 3(CoNEXT4), 2025.
+- **BG-CFQS** (the direct baseline): Xie et al., *Risk-Aware Safe Throughput
+  Forecasting for Starlink Networks*, arXiv:2605.09508, 2026.
+- **WetLinks** (the second dataset): Laniewski et al., TMA 2024.
+
+The full bibliography, 40 entries, is [`docs/references.bib`](docs/references.bib).
+
+## Licence
+
+MIT, see [`LICENSE`](LICENSE). The licence covers the code only. The datasets
+are redistributed by their own authors under their own terms, and several
+components here are reimplementations of published methods, identified as such
+in their module docstrings.

@@ -5,24 +5,44 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "flwcnx"
 version = "0.1.0"
-description = "Predictive bandwidth allocation for Starlink access links: regime-conditioned safe throughput bounds."
+description = "Risk-controlled throughput forecasting and bandwidth allocation for Starlink access links."
 requires-python = ">=3.11"
-authors = [{ name = "Mayan Sharma", email = "mayan25sharma@gmail.com" }]
+authors = [
+  { name = "Mayan Sharma", email = "mayan25sharma@gmail.com" },
+  { name = "Kriti Saini" },
+  { name = "Devansh Behl" },
+]
 readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["starlink", "leo", "conformal-prediction", "risk-control",
+            "throughput-prediction", "admission-control"]
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Intended Audience :: Science/Research",
+  "Topic :: System :: Networking",
+]
+# Audited 2026-09-02 against actual imports. scipy, scikit-learn and pyyaml
+# were declared and never imported: scipy in particular, because the one place
+# it would have been used (the chi-squared tail in calibrate/heterogeneity.py)
+# is hand rolled precisely so it is not a dependency.
 dependencies = [
   "numpy>=1.26",
   "pandas>=2.1",
-  "scipy>=1.11",
-  "scikit-learn>=1.4",
   "xgboost>=2.0",
   "torch>=2.1",
   "matplotlib>=3.8",
-  "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
+# skyfield is kept because ingest/live.py is written against it for the live
+# path, even though the replay path only needs sgp4.
 orbital = ["sgp4>=2.23", "skyfield>=1.48"]
 dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.urls]
+Repository = "https://github.com/Mayan10/flwcnx"
 
 [tool.setuptools.packages.find]
 include = ["flwcnx*"]

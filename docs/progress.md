@@ -239,9 +239,45 @@ suggest the embedding's contribution sits in the tail rather than the mean.
 
 ## Phase 6. Hardening and writeup
 
-Status: partial. Tests at 146, ruff clean, figures and summary tables
-generated. `ingest/live.py` is still a stub and the README architecture
-diagram is still text.
+Status: **done**, 2026-09-02.
+
+- 176 tests, ruff clean, CI on Python 3.11 / 3.12 / 3.13.
+- Both deliverables written: `docs/paper/paper.md` and `docs/paper/report.md`.
+- A working demonstration, `scripts/run_demo.py`, with a causality test.
+- `LICENSE`, `CITATION.cff`, `docs/README.md` index, README badges.
+- Dependency audit: scipy, scikit-learn and pyyaml were declared and never
+  imported, and are removed. scipy in particular, because the chi-squared tail
+  in `calibrate/heterogeneity.py` is hand rolled precisely so it is not a
+  dependency.
+- Citation audit: eight entries added to `references.bib` that were cited in the
+  paper or the source and missing from the file, including Barber et al. 2023,
+  Cochran 1954, Higgins and Thompson 2002 and the SGP4 reference.
+- Every internal documentation link checked and resolving.
+
+Still not done, and stated rather than hidden: `ingest/live.py` raises, so there
+is no live terminal path; the architecture diagram is still text; and the
+shrinkage literature named in the novelty review as the most likely source of an
+overturning citation was not searched.
+
+## Two withdrawn claims
+
+Recorded here because a progress log that only lists successes is not a record.
+
+1. **The methods claim.** The project was designed around a regime-conditioned
+   calibration layer believed to be novel. It is published as GCACI (Ramalingam,
+   Kiyani and Roth 2025), and for a partition their algorithm reduces exactly to
+   ours. Withdrawn in full on 2026-09-01. `docs/novelty-assessment.md`,
+   `docs/novelty-review.md`.
+
+2. **The offset-spread predictor.** Reported as monotonic across four datasets
+   and "computable on the calibration split before any test decision". The
+   figures were post-hoc, taken from offsets applied during the test replay.
+   Recomputed correctly the ordering breaks. Withdrawn on 2026-09-01.
+   `results/summary/gate-negative-result.md`.
+
+Both were caught internally, the first by commissioning an adversarial
+literature review and the second by noticing that the gated and ungated
+calibrators produced byte-identical output.
 
 ## Open questions
 
