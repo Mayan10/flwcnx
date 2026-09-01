@@ -77,9 +77,11 @@ Everything that survives is measurement, and all of it is verified:
    0.848, all in range) and 1/3 under a temporal one.
    `scripts/split_sensitivity.py`.
 3. **BG-CFQS cannot serve a budget below 0.15.** Their candidate set is
-   T = [0.15, 0.40], so achieved OverRate pins at 0.1854 for every budget at or
-   under 0.15, a 3.7x overshoot at 0.05. Their paper reports only 0.35, where
-   the floor never binds.
+   T = [0.15, 0.40] (verified from their Table II), so the achieved OverRate is
+   identical at budgets of 0.05, 0.10 and 0.15 on all four datasets, because the
+   method returns the same quantile. Overshoot at 0.05 ranges 1.4x to 3.7x
+   depending on the link. Their paper reports only 0.35, where the floor never
+   binds.
 4. **Static calibration misses its budget in both directions**, and the sign is
    a property of the drift rather than the method: it overshoots on WetLinks
    (0.423 against 0.35, test month slower) and undershoots on StarNet (0.293,
