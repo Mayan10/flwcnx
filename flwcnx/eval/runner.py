@@ -445,6 +445,13 @@ def main(argv: list[str] | None = None) -> int:
                         default=["global", "phase", "phase+elevation", "full"])
     parser.add_argument("--lookback", type=int, default=30)
     parser.add_argument("--horizon", type=int, default=5)
+    # Stride 1 builds 1.1M windows on the US trace, and the online calibrator
+    # walks the test split one decision at a time, so the grid becomes
+    # intractable rather than merely slow. StarNet's own per-location step
+    # sizes are 46 / 6 / 29, which is also what keeps this comparable to the
+    # Phase 1 gate.
+    parser.add_argument("--stride", type=int, default=1,
+                        help="window step; use StarNet's 46/6/29 per location")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--device", default="auto")
@@ -460,7 +467,8 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         device=args.device,
         data=DataConfig(root=args.data, location=args.location),
-        features=FeatureConfig(lookback=args.lookback, horizon=args.horizon),
+        features=FeatureConfig(lookback=args.lookback, horizon=args.horizon,
+                               stride=args.stride),
         model=StarNetConfig(epochs=args.epochs),
         split=SplitConfig(scheme=args.split),
     )
