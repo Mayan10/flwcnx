@@ -146,7 +146,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--all", action="store_true", help="run all three locations")
     parser.add_argument("--lookback", type=int, default=75)
     parser.add_argument("--horizon", type=int, default=15)
-    parser.add_argument("--stride", type=int, default=1)
+    # Stride 1 is not runnable here and is arguably not right either. At
+    # L = 75 the US location builds 1.12M windows of 75 x 13, over 4 GB before
+    # XGBoost sees them, and the quantile search fits a dozen models.
+    #
+    # The stronger argument is statistical. Overlapping windows share horizon
+    # samples, so consecutive decisions are near duplicates and an OverRate
+    # computed across them has a far smaller effective sample size than n
+    # suggests. Setting stride = horizon makes every scored decision disjoint,
+    # which is the honest denominator for a risk rate. Pass --stride 1 to get
+    # the dense version if the memory is available.
+    parser.add_argument("--stride", type=int, default=15,
+                        help="default equals the horizon, so scored decisions "
+                             "do not overlap")
     parser.add_argument("--epsilon", type=float, default=0.35)
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--output", type=Path, default=Path("results/reproduce_bgcfqs"))
