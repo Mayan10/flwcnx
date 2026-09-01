@@ -29,6 +29,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from flwcnx.timeutil import to_epoch_nanoseconds
+
 BASE_URL = "https://www.space-track.org"
 LOGIN_URL = f"{BASE_URL}/ajaxauth/login"
 QUERY_URL = f"{BASE_URL}/basicspacedata/query"
@@ -260,7 +262,7 @@ def candidate_counts_for_times(
 
     # Group the timeline into refresh windows so the element selection and the
     # propagation both stay bounded.
-    bucket = (stamps.astype("int64") // int(refresh_hours * 3600 * 1e9))
+    bucket = (to_epoch_nanoseconds(stamps) // int(refresh_hours * 3600 * 1e9))
     rows = []
     for _, index in stamps.groupby(bucket).groups.items():
         window = stamps.loc[index]

@@ -33,6 +33,7 @@ import numpy as np
 import pandas as pd
 
 from flwcnx.config import PERIOD_SECONDS, TARGET_COL, TIME_COL
+from flwcnx.timeutil import to_epoch_seconds
 
 # 12, 27, 42 and 57 are all congruent to 12 modulo 15, so the published
 # rescheduling points reduce to a single phase offset.
@@ -77,9 +78,8 @@ class PhaseReference:
 
 
 def _epoch_seconds(times: pd.Series) -> np.ndarray:
-    """Seconds since the epoch. 60 is a multiple of 15, so phase measured this
-    way is the same phase as second-of-minute modulo 15."""
-    return times.astype("int64").to_numpy() / 1e9
+    """Seconds since the epoch, resolution-safe. See `flwcnx.timeutil`."""
+    return to_epoch_seconds(times)
 
 
 def detect_edges(

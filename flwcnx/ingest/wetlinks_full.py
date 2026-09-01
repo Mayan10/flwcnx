@@ -40,6 +40,7 @@ from flwcnx.ingest.base import (
     validate_frame,
 )
 from flwcnx.ingest.wetlinks import SITE_COORDINATES
+from flwcnx.timeutil import to_epoch_nanoseconds
 
 #: Physically possible ranges for the weather columns. Anything outside is a
 #: sentinel or a sentinel averaged with real readings, and becomes NaN.
@@ -277,7 +278,8 @@ def attach_geometry(
     anchors = work.groupby("segment")[TIME_COL].min().sort_values()
     # Element sets are re-selected every `refresh_hours`, so SGP4 never
     # propagates further than that from an epoch.
-    window = (anchors.astype("int64") // int(refresh_hours * 3600 * 1e9))
+    window = pd.Series(to_epoch_nanoseconds(anchors) // int(refresh_hours * 3600 * 1e9),
+                       index=anchors.index)
 
     pieces = []
     for _, group in anchors.groupby(window):

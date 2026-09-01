@@ -21,6 +21,7 @@ import pandas as pd
 
 from flwcnx.config import TIME_COL
 from flwcnx.ingest.tle import MIN_SERVICE_ELEVATION_DEG
+from flwcnx.timeutil import to_epoch_seconds
 
 # The terminal reports obstruction over a field of view centred on boresight.
 # 70 degrees off boresight is the usable cone for a Gen 3 dish; anything beyond
@@ -184,7 +185,7 @@ def resolve_from_frame(frame: pd.DataFrame) -> pd.DataFrame:
     for _, part in work.groupby("segment", sort=False):
         idx = part.index.to_numpy()
         ids = part["sat_id"].to_numpy()
-        times = part[TIME_COL].astype("int64").to_numpy() / 1e9
+        times = to_epoch_seconds(part[TIME_COL])
 
         changed = np.zeros(len(ids), dtype=bool)
         changed[0] = True
