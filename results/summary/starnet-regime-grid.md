@@ -132,6 +132,16 @@ regimes differ at all. Data volume decides how *precisely* a per-regime offset
 can be estimated; offset spread decides whether there is anything worth
 estimating. Both have to clear, and on the US trace the second one does not.
 
+> **WITHDRAWN 2026-09-01.** The spread figures quoted here are post-hoc: they
+> come from the offsets *applied during the test replay*, not from the
+> calibration split, so the claim that they are available before test time is
+> false. Recomputed correctly, the ordering breaks: Germany has the largest
+> pre-test spread (5.83 Mbps) and no benefit, Canada has a smaller one (5.17)
+> and the only benefit. See `results/summary/gate-negative-result.md`.
+
+The paragraph below was written before that was checked and is left in place as
+the record of the mistake.
+
 **This is directly actionable and should be the next thing built.** The spread
 is computable on the calibration split, before any test decision is made, and it
 predicts the sign of the effect on all four datasets here. A layer that measures

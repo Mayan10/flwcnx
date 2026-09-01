@@ -84,10 +84,11 @@ Everything that survives is measurement, and all of it is verified:
    a property of the drift rather than the method: it overshoots on WetLinks
    (0.423 against 0.35, test month slower) and undershoots on StarNet (0.293,
    test period easier). Either way an operator cannot set a budget and get it.
-5. **Group conditioning helps only when the groups actually differ, and the
-   spread of the fitted per-regime offset predicts the sign** across four
-   datasets monotonically: 1.85 Mbps and it costs 6.1%, 11.30 Mbps and it gains
-   1.7%. Computable on the calibration split before any test decision.
+5. **Group conditioning helps only when the groups actually differ.** The
+   attempt to turn that into a pre-test predictor failed and is reported as a
+   negative: the spread figures originally quoted were post-hoc, and the
+   calibration-split version does not order the effect.
+   `results/summary/gate-negative-result.md`.
 6. **The satellite covariates do not carry the signal.** With elevation,
    distance and candidate count *measured* rather than reconstructed, every
    axis is worse than no conditioning under the online layer. Objective O2's

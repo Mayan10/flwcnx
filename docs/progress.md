@@ -278,3 +278,26 @@ New, raised by the results:
    update rule is Gibbs and Candes and labelled as theirs. Running it per
    regime is new as far as the reading has gone, but that reading is not a
    literature search. Someone should check before it is claimed in a writeup.
+
+## Phase 4c. The heterogeneity gate, and a withdrawn claim
+
+Status: done, and it is a negative. `results/summary/gate-negative-result.md`.
+
+The gate was built with Cochran's Q and I-squared on calibration-split
+per-regime offsets, on the independent review's recommendation to replace an ad
+hoc threshold with a standard test. It does not work, for two separate reasons.
+
+It fires everywhere. On the US trace, where conditioning costs 6.1%, the test
+returns Q = 18.3 on 3 dof, p = 0.0004, I-squared = 0.84 for an offset spread of
+1.99 Mbps. With ~1,200 calibration points per regime a 2 Mbps difference is
+comfortably significant, and I-squared is scale free so it agrees. Both hurdles
+ask whether the difference exists; neither asks whether it is worth anything.
+
+And the predictor claim it was built on was wrong. The spread figures reported
+earlier were read from the offsets *applied during the test replay*, a post-hoc
+quantity. Recomputed on the calibration split the ordering breaks: Germany has
+the largest pre-test spread and no benefit, Canada a smaller one and the only
+benefit. Withdrawn in README, novelty-assessment, starnet-regime-grid and the
+project memory.
+
+This removes the last candidate for a methods contribution.

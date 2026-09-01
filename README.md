@@ -55,9 +55,13 @@ conditioning at all:
 | 15 s phase | 0.6944 | +4.2% |
 | all four brief axes | 0.7085 | +6.3% |
 
-The cause is measurable and it is not data volume. It is that on most of these
-traces the regimes do not differ. The spread of the fitted per-regime offset
-predicts the sign of the effect on all four datasets:
+The cause is that on most of these traces the regimes do not differ enough to
+be worth conditioning on. **An earlier version of this section claimed the
+per-regime offset spread predicts the sign of the effect from a quantity
+computable before test time. That claim is withdrawn**: the numbers below are
+post-hoc, and the pre-test version of the statistic does not order the effect
+(`results/summary/gate-negative-result.md`). They are kept as a description of
+what the offsets did, not as a predictor:
 
 | dataset | offset spread | effect on P10 |
 |---|---|---|
@@ -146,9 +150,9 @@ in full. What the work contributes is evidence:
 4. **Static calibration misses its budget in both directions**, over on
    WetLinks and under on StarNet, so the sign is a property of the drift rather
    than the method.
-5. **Group conditioning helps only when the groups differ**, and the spread of
-   the fitted per-regime offset predicts the sign across four datasets
-   monotonically, from a quantity computable before any test decision.
+5. **Group conditioning helps only when the groups differ.** The attempt to
+   predict *which* case a trace is in, from the calibration split, failed:
+   `results/summary/gate-negative-result.md`. Reported as a negative.
 6. **The satellite covariates do not carry the signal** when measured rather
    than reconstructed. Objective O2's premise is not supported.
 7. **Casparsen's 15 s scheduling offset recovered independently** on three
