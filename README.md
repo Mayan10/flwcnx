@@ -261,7 +261,7 @@ these. Each run writes `result.json` with a configuration snapshot beside it;
 the figure and table generators recompute nothing.
 
 ```bash
-pytest -q                                               # 176 tests, synthetic fixtures
+pytest -q                                               # 193 tests, synthetic fixtures
 
 python scripts/reproduce_starnet.py --location all      # gate 1: StarNet accuracy
 python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2: BG-CFQS risk table

@@ -31,7 +31,7 @@ The design decision that makes the whole thing testable is that congestion is
 committed allocation for a sustained window. Issue 2 costs almost nothing and
 the system stays coherent.
 
-**Status: complete and running.** 176 tests, lint clean, both reproduction gates
+**Status: complete and running.** 193 tests, lint clean, CI on Python 3.11 to 3.13, both reproduction gates
 passed, a working demonstration, and every reported number traceable to a run
 with its configuration snapshot beside it.
 
@@ -284,7 +284,7 @@ and checkable by a reader in ten minutes.
 ## 9. Reproducing everything
 
 ```bash
-pytest -q                                       # 176 tests
+pytest -q                                       # 193 tests
 
 python scripts/reproduce_starnet.py --location all      # gate 1
 python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2

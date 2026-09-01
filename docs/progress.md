@@ -241,7 +241,7 @@ suggest the embedding's contribution sits in the tail rather than the mean.
 
 Status: **done**, 2026-09-02.
 
-- 176 tests, ruff clean, CI on Python 3.11 / 3.12 / 3.13.
+- 193 tests, ruff clean, CI on Python 3.11 / 3.12 / 3.13.
 - Both deliverables written: `docs/paper/paper.md` and `docs/paper/report.md`.
 - A working demonstration, `scripts/run_demo.py`, with a causality test.
 - `LICENSE`, `CITATION.cff`, `docs/README.md` index, README badges.
