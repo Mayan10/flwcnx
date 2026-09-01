@@ -80,3 +80,54 @@ motivated on its own terms and not as a side effect of the drift work.
 python scripts/reproduce_bgcfqs.py --all --stride 15
 python scripts/split_sensitivity.py
 ```
+
+
+---
+
+## Verified from the primary source, 2026-09-01
+
+The independent review flagged that the `T = [0.15, 0.40]` bound had not been
+confirmed: its fetch of Table II was truncated. It is now confirmed by direct
+text extraction from the arXiv PDF of arXiv:2605.09508.
+
+**Table II, Experimental Configuration, verbatim:**
+
+    History length      L   75
+    Prediction horizon  H   15
+    Default risk budget e   0.35
+    Candidate quantile set T [0.15, 0.40]
+    Coarse tolerance    d   0.05
+    Fine-grid size      M   5
+
+The same table gives used samples 1,123,832 / 613,295 / 145,053 for CHI / OSN /
+VIC, which match this project's loader exactly and independently confirm the US
+file identification recorded in `docs/data-access.md`.
+
+**Algorithm 1, the floor, verbatim:**
+
+    4:  if R(tau_max) <= e then
+    5:      Set boundary interval [t-, t+] = [tau_max, tau_max]
+    6:  else if R(tau_min) > e then
+    7:      Set boundary interval [t-, t+] = [tau_min, tau_min]
+    ...
+    21: Build Q_fine = LinSpace(t-, t+, M)
+    23: if exists tau in Q_fine such that R(tau) <= e then
+    24:     Select tau* = argmin A(tau) over the feasible set
+    25: else
+    26:     Select tau* = argmin A(tau) + lambda max(R(tau) - e, 0)
+
+When the budget is tighter than the risk at the most conservative candidate,
+line 6 fires, the interval collapses to a point, line 21's `LinSpace` produces
+M copies of `tau_min`, the feasible set at line 23 is empty, and line 26
+returns `tau_min` however small the budget gets. The achieved rate therefore
+pins at `R(tau_min)`, which is what we measure at 0.1854 for every budget at or
+below 0.15.
+
+**The finding is confirmed end to end**: the parameter from their Table II, the
+mechanism from their Algorithm 1, and the pinned rate from our runs.
+
+One further confirmation of the review's reading: their equations (23) to (26)
+define admission control as `n_admit = floor(y_safe / b)` and
+`n_drop = max(n_admit - n_oracle, 0)`, which is the same arithmetic as this
+project's decision layer. The decision layer is therefore a reproduction of
+theirs, not an addition, and is described that way.
