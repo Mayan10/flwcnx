@@ -68,6 +68,15 @@ from flwcnx.state.regime import (
 )
 
 BACKBONES = ("starnet", "starnet_no_pe", "starnet_no_attn", "dlinear", "patchtst", "timesnet")
+
+#: Every calibration method the grid scores, in the order the argument builds.
+#: The two adaptive entries were added after this module was first written and
+#: run_grid did not know about them, so the CLI silently produced grids without
+#: the layer the project is about.
+ALL_METHODS: tuple[str, ...] = (
+    "point", "global_conformal", "regime_conformal", "regime_bgcfqs",
+    "adaptive_global_conformal", "adaptive_regime_conformal",
+)
 EPSILON_SWEEP = (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35)
 
 
@@ -372,6 +381,7 @@ def run_grid(source: Source, config: ExperimentConfig, output: str | Path,
              *, backbones: tuple[str, ...] = ("starnet",),
              epsilons: tuple[float, ...] = EPSILON_SWEEP,
              granularities: tuple[str, ...] = ("global", "phase", "phase+elevation", "full"),
+             methods: tuple[str, ...] = ALL_METHODS,
              direction: str | None = None, verbose: bool = True) -> list[Path]:
     """The full grid from CLAUDE.md section 8, one directory per backbone."""
     output = Path(output)
@@ -380,8 +390,7 @@ def run_grid(source: Source, config: ExperimentConfig, output: str | Path,
         run_config = replace(config, name=f"{config.name}-{backbone}")
         result = run_experiment(
             source, run_config, backbone=backbone,
-            calibration_methods=("point", "global_conformal", "regime_conformal",
-                                 "regime_bgcfqs"),
+            calibration_methods=methods,
             epsilons=epsilons, granularities=granularities, direction=direction,
             verbose=verbose,
         )

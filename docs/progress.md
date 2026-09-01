@@ -19,57 +19,69 @@ Status: done.
 
 ## Phase 1. Reproduce StarNet
 
-Status: code complete, **not yet run**. Blocked on the traces, which cannot be
-downloaded programmatically (see `docs/data.md`).
+Status: **PASSED**, 2026-09-01. `results/summary/phase1-starnet-gate.md`.
 
-What was learned from their released code while building the loader, all of it
-recorded in `docs/data.md`:
+The traces arrived (`docs/data-access.md`). Look-back 30, output 5, their
+published step sizes 46 / 6 / 29, contiguous 8:2, 50 epochs, seed 1337, MPS.
 
-- the traces are pickled DataFrames on OneDrive, not CSVs in the repo;
-- the columns are `alt`, `az`, `sat_name`, `n_candidates`, `clouds`, `humidity`,
-  not the names assumed in the brief;
-- the traces **do** carry latency, which makes the Casparsen crossover cheaper
-  than treating it as a stretch implied;
-- the weather variable is humidity, not precipitation;
-- there are thirteen model inputs, not eleven;
-- their loader fits its scaler on the whole trace before splitting, so their
-  published numbers carry a scale leak we deliberately do not reproduce.
+| location | RMSE | published | gap | MAE | published | gap |
+|---|---|---|---|---|---|---|
+| USA | 42.56 | 40.33 | +5.5% | 31.94 | 29.88 | +6.9% |
+| Canada | 38.38 | 41.08 | -6.6% | 29.55 | 30.84 | -4.2% |
+| Germany | 38.24 | 36.48 | +4.8% | 28.42 | 27.11 | +4.8% |
+| **average** | **39.73** | **39.30** | **+1.1%** | **29.97** | **29.28** | **+2.4%** |
 
-The gate is the RMSE/MAE table in CLAUDE.md section 6 (look-back 30, output 5)
-within a few percent:
+Gaps scatter in both directions, which is what an independent reimplementation
+looks like. We also do not reproduce their whole-trace scaler leak.
 
-| | RMSE | MAE |
-|---|---|---|
-| USA | 40.33 | 29.88 |
-| Canada | 41.08 | 30.84 |
-| Germany | 36.48 | 27.11 |
+The loader verifies at zero relative error on all three locations once checked
+against the *released* file rather than the collection: the US release holds
+1,123,832 samples, not the 2,475,163 the paper reports collecting, and that is
+their training set rather than a partial download. See the gate summary.
 
-To run:
+A free result while loading: the 15 s scheduling phase recovers to 11.98 s,
+12.25 s and 12.09 s across the three continents, confirming Casparsen's 12 s
+offset from a different signal at 1/500th of their sampling rate.
+`results/summary/phase-recovery-crossover.md`.
 
-```
-python scripts/download_data.py --dataset starnet --dest data/starnet
-# download the three OneDrive folders by hand, then:
-python scripts/download_data.py --inspect data/starnet/usa
-python scripts/reproduce_starnet.py --location all --ablations
-```
-
-Until that table is reproduced no number from any later phase means anything.
-If the gap is small and stubborn, the two things to try first are
-`--hidden 60` (their code default, against the paper text's 128) and their
-whole-trace scaler.
+Not yet run: the ablations (published 38.00 without the periodical embedding,
+37.01 without attention).
 
 ## Phase 2. Reproduce BG-CFQS and expose the gap
 
-Status: code complete, **not yet run**. Blocked on the traces.
+Status: **PASSED**, 2026-09-01. `results/summary/phase2-bgcfqs-gate.md`.
 
-Two gates. First the published average table (MAE 40.364, RMSE 52.480,
-OverRate 0.349, MPE 11.745, P95+Err 65.834, risk pass 3/3) and the selected
-quantiles (CHI 0.314, OSN 0.244, VIC 0.306). Then the conditional OverRate on
-the P30 and P10 subsets, which should land in 0.65 to 0.71 and 0.83 to 0.86.
-That second table is the motivation figure for the whole project.
+It passed only after the split was identified as the confound, and that
+identification is the more useful result.
 
-To run: `python scripts/reproduce_bgcfqs.py --all`. The motivation figure is
-written on every run.
+Under contiguous temporal splits the conditional failure reproduced but the
+risk column did not: OverRate 0.391 against their 0.349, risk pass 0/3 against
+3/3, while accuracy came out *better* than published. Better accuracy with
+worse risk was the clue worth chasing.
+
+`scripts/split_sensitivity.py` holds everything constant but the split:
+
+| split | OverRate | P30 | P10 | risk pass |
+|---|---|---|---|---|
+| temporal | 0.377 | 0.750 | 0.909 | 1/3 |
+| random (exchangeable) | 0.340 | 0.671 | 0.848 | 3/3 |
+| published | 0.349 | 0.65 to 0.71 | 0.83 to 0.86 | 3/3 |
+
+Every published quantity lands in range under the exchangeable split. The
+reimplementation is correct, and their guarantee is conditional on an
+assumption a deployed terminal does not have. Their paper does not claim
+otherwise; it does not report the temporal case.
+
+**The finding that matters most is in the random-split P10: 0.848, in the arm
+where the method passes its budget 3/3.** The conditional failure is intrinsic
+to global quantile selection, not a symptom of drift. So the two problems this
+project addresses are independent, and the regime layer is motivated on its own
+terms:
+
+| failure | visible when | fix |
+|---|---|---|
+| risk lost in the low-capacity regime | always | regime conditioning |
+| budget lost entirely | only under temporal splits | online recalibration |
 
 ## Phase 3. Evaluation harness
 

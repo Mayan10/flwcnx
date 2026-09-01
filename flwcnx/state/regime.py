@@ -274,12 +274,30 @@ def build_fallback_map(
 
 
 def regime_granularity_presets() -> dict[str, tuple[str, ...]]:
-    """The ablation grid from CLAUDE.md section 8."""
+    """The ablation grid from CLAUDE.md section 8, plus the look-back axes.
+
+    The brief's four axes are all here and `full` still means exactly what it
+    meant before, so the ablation the brief asked for is unchanged. What is
+    added is the ability to ask the question the WetLinks work raised and could
+    not settle: `level` beat every satellite axis there, but the geometry there
+    was reconstructed and its elevation proxy was degenerate. On the StarNet
+    traces the geometry is **measured**, so this grid puts the brief's axes and
+    the look-back axes side by side on data where both are real.
+
+    `geometry` isolates the three satellite axes with no time or level axis
+    mixed in, which is the clean form of the objective O2 question.
+    """
     return {
         "global": (),
         "phase": ("phase",),
+        "elevation": ("elevation",),
+        "candidates": ("candidates",),
+        "geometry": ("elevation", "distance", "candidates"),
         "phase+elevation": ("phase", "elevation"),
         "full": ("phase", "elevation", "distance", "candidates"),
+        "level": ("level",),
+        "level+geometry": ("level", "elevation", "distance", "candidates"),
+        "level+full": ("level", "phase", "elevation", "distance", "candidates"),
     }
 
 
