@@ -17,41 +17,70 @@ into a single system rather than three disconnected models:
 
 ## The result
 
-Osnabrück, 68,398 iperf bursts of measured per-second capacity, 13,530 test
-decisions, temporal split, leak check clean. Risk budget 0.35. OverRate is the
-fraction of decisions where the bound promised capacity the link did not
-deliver; P30 and P10 are the lowest 30% and 10% of true throughput, the slices
-where over-allocation actually drops sessions.
+Two datasets, and **they disagree about half of it.** Both are reported.
 
-| method | OverRate | P30 | P10 | MAE (Mbps) |
-|---|---|---|---|---|
-| point forecast, uncalibrated | 0.5048 | 0.7472 | 0.8411 | 24.40 |
-| split conformal, global | 0.4227 | 0.6689 | 0.7546 | 24.77 |
-| regime conformal, static (ours) | 0.4086 | 0.5967 | 0.6681 | 24.87 |
-| adaptive conformal, global | 0.3498 | 0.5679 | 0.6393 | 26.02 |
-| **adaptive regime conformal (ours)** | **0.3508** | **0.5484** | **0.6038** | 25.99 |
+### What replicates: online recalibration
 
-Two mechanisms, and they compose: online adaptation buys the budget, regime
-conditioning buys the conditional rates. Across the full budget sweep the
-online layer tracks its target within 0.002 at every point:
+Static split conformal cannot hold a stated risk budget on a LEO link, because
+the link is not stationary across a temporal split. It misses in whichever
+direction the drift points:
 
-| budget | 0.05 | 0.10 | 0.15 | 0.20 | 0.25 | 0.30 | 0.35 |
-|---|---|---|---|---|---|---|---|
-| achieved | 0.0516 | 0.1007 | 0.1508 | 0.2010 | 0.2511 | 0.3010 | 0.3508 |
+| dataset | budget | static achieved | online achieved |
+|---|---|---|---|
+| WetLinks Osnabruck | 0.35 | 0.423 (**over**) | 0.351 |
+| StarNet, 3 locations | 0.35 | 0.293 (**under**) | 0.350 |
 
-Downstream, at 10 Mbps per session: mean dropped sessions falls from 1.341
-(uncalibrated) to 0.915, a 31.8% reduction, at a cost of 3.0 points of link
-utilisation (0.9431 to 0.9131). Against the static conformal bound rather than
-the raw forecast the comparison is 1.108 to 0.915 dropped sessions for 1.6
-points of utilisation.
+Across the full sweep from 0.05 to 0.35 the online layer tracks its budget
+within 1% at every point; static is 16 to 21% off on StarNet and 20% off on
+WetLinks. An overshoot drops sessions and an undershoot wastes capacity, and in
+neither case can an operator set a budget and get it.
 
-The layer sits on top of any forecaster. Across six backbones the achieved
-global OverRate spans 0.3494 to 0.3512 against the 0.35 budget, while those
-backbones' own point MAE spans 24.3 to 35.2 Mbps. Conditional risk control is
-more backbone dependent, and `results/summary/backbones.md` says where and why.
+At **matched achieved risk** on the StarNet traces, the online layer is 10 to
+15% better on severe-risk P10 and simultaneously better on MAE at every
+operating point.
 
-Full tables in `results/summary/`. Every number there is read back from a run's
+### What does not replicate: regime conditioning
+
+On WetLinks, conditioning on the observed look-back level cut P10 OverRate from
+0.6393 to 0.6038, a 5.5% gain. On the StarNet traces, with satellite geometry
+**measured** rather than reconstructed, every axis is *worse* than no
+conditioning at all:
+
+| axes | P10 | vs none |
+|---|---|---|
+| none | 0.6663 | - |
+| level | 0.6733 | +1.1% |
+| candidates | 0.6755 | +1.4% |
+| measured geometry | 0.6931 | +4.0% |
+| 15 s phase | 0.6944 | +4.2% |
+| all four brief axes | 0.7085 | +6.3% |
+
+The cause is specific and measurable: per-regime *online* calibration must
+converge one operating point per regime from a feedback stream, and splitting
+20,714 decisions across 51 regimes leaves ~400 each. Correlation between
+log10(outcomes per regime) and P10 is -0.571. In the *static* setting
+conditioning still helps by about 3%.
+
+**Objective O2's premise is not supported.** Measured serving-satellite
+elevation, distance and candidate count did not improve conditional risk
+control at any of the three locations.
+
+Full tables in `results/summary/`. Every number is read back from a run's
 `result.json` with its config snapshot beside it.
+
+### Reproduction gates, both passed
+
+| gate | result |
+|---|---|
+| StarNet (Phase 1) | average RMSE 39.73 vs 39.30 published (+1.1%), MAE 29.97 vs 29.28 (+2.4%) |
+| BG-CFQS (Phase 2) | under an exchangeable split: OverRate 0.340 vs 0.349, P30 0.671 (pub 0.65-0.71), P10 0.848 (pub 0.83-0.86), risk pass 3/3 |
+
+Phase 2 passed only after `scripts/split_sensitivity.py` identified the split
+as the confound. BG-CFQS's guarantee holds under the exchangeability it is
+derived from and does not survive a temporal split. Their paper does not claim
+otherwise. The detail that matters: **P10 is 0.848 in the arm where the method
+passes its budget 3/3**, so the conditional failure is intrinsic to global
+quantile selection rather than a symptom of drift.
 
 ## Architecture
 
@@ -89,12 +118,20 @@ Being precise about this matters more than anything else in the repo.
 
 **Ours:**
 
-> A regime conditioned calibration layer that converts a point throughput
-> forecast into a safe lower bound whose overestimation rate is controlled
-> *within each operating regime*, where regime is defined by covariates the
-> terminal can compute at prediction time; and the online instantiation of it,
-> which maintains one adaptive operating point and one residual window per
-> regime rather than the single global one the published rule assumes.
+> An online calibration layer that converts a point throughput forecast into a
+> safe lower bound and holds a stated overestimation budget under distribution
+> shift, together with a regime conditioned form of it that maintains one
+> adaptive operating point and one residual window per regime rather than the
+> single global one the published rule assumes.
+
+**How that claim has narrowed, and why.** The project was designed around the
+regime conditioning, with the online layer added later when the temporal drift
+turned out to break every static method. On the evidence the two have swapped
+places. Online recalibration replicates on both datasets and dominates static
+calibration at matched risk. Regime conditioning gave 5.5% on WetLinks, about
+3% in the static setting on StarNet, and is net-negative in the online setting
+on StarNet. It is dataset dependent and small, and is described that way rather
+than as a reliable gain. See `results/summary/starnet-regime-grid.md`.
 
 BG-CFQS selects one global quantile to hold the overestimation rate at the
 budget. Their own results show this fails conditionally: against a budget of
@@ -104,7 +141,7 @@ average and lost precisely in the low capacity regime where over allocation
 actually drops sessions. **That failure reproduces here on independent data**:
 the uncalibrated forecaster runs at 0.505 globally and 0.841 at P10.
 
-### Which regime axes actually work
+### Which regime axes actually work (WetLinks; see above for StarNet)
 
 Reported plainly because the answer contradicts what the brief expected.
 Ablation at budget 0.35, P10 OverRate:
