@@ -150,3 +150,57 @@ The elevation and distance axes, and therefore the honest version of the
 objective O2 question. Everything else in the pipeline already runs and would
 take the traces unchanged, because `ReplaySource` was built to their schema in
 Phase 1.
+
+
+---
+
+# Unblocked, 2026-09-01
+
+**The traces arrived.** Mayan obtained access to the OneDrive share. Everything
+in the "Resolution" section above describes the period when they were
+unavailable and is kept as the record of what was tried and what the fallback
+cost; it is no longer the current state.
+
+## What arrived, and what it actually was
+
+Three files, one per location, plus `dataset_ho.pkl` and `sat_stats.npy`. The
+filenames and the folders they were dropped into did not agree, so every file
+was identified from its contents rather than its path:
+
+| dropped as | rows | satellites | timezone | span | actually |
+|---|---|---|---|---|---|
+| `usa/Victoria Dataset.pkl` | 145,053 | 3,166 | -07:00 | Jul 11-28 | **Canada (VIC)** |
+| `canada/dataset_tp_sat.pkl` | 1,123,832 | 5,723 | -05:00 | Apr 26-May 28 | **USA (CHI)** |
+| `germany/Dataset TP Sat.pkl` | 613,295 | 3,956 | +02:00 | Jul 13-31 | **Germany (OSN)** |
+
+USA and Canada were swapped. The identification is certain rather than inferred:
+145,053 / 3,166 and 613,295 / 3,956 are exact matches to the paper's dataset
+table, the timezones place the terminals on the right continents, and the date
+ranges match BG-CFQS's three published processing windows.
+
+Files now live at `data/starnet/{usa,canada,germany}/dataset_tp_sat.pkl`.
+`dataset_ho.pkl` and `sat_stats.npy` were moved to `data/starnet/aux/`, because
+`ReplaySource` concatenates every `*.pkl` in a location directory and
+`dataset_ho` has a different schema.
+
+## The US file is a subset, and that is correct
+
+The paper reports collecting 2,475,163 US samples; the released file holds
+1,123,832. Not a partial download:
+
+- it is exactly the CHI sample count BG-CFQS report processing;
+- `(1,123,832 - 45) / 46 + 1 = 24,430`, exactly the US data-point count StarNet
+  report training on at sequence length 45 and step 46.
+
+The released file is their training set. `replay.py` checks against
+`RELEASED_FILE_STATS` for this reason and all three locations now verify at
+zero relative error.
+
+## Which file to ask for, if this ever has to be done again
+
+`dataset_tp_sat.pkl`, one per location. It is the default path in
+`main_pred.py`, `evaluate.py` and the TimesNet baseline's
+`main_parameter_searching.py`. `dataset_nn.pkl` (524 MB) and
+`aggregated_dataset_tp_sat.pkl` are never referenced by the model code, and the
+8:2 split is done in code from the single file, so `dataset_tp_sat_test.pkl` is
+not needed either.
