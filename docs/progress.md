@@ -155,6 +155,38 @@ against the uncalibrated forecaster and 17.4% against global conformal. On the
 P10 slice 3.308 to 2.385, a 27.9% reduction. Utilisation falls from 0.943 to
 0.913, which is the price and is reported next to the gain.
 
+## Phase 4b. The regime layer on the StarNet traces
+
+Status: done, 2026-09-01. `results/summary/starnet-regime-grid.md`.
+
+**This run changes the contribution claim and the change is a narrowing.**
+
+Online recalibration replicates: budget tracked within 1% across the sweep
+where static is 16 to 21% off, and 10 to 15% better P10 at matched achieved
+risk with better MAE at the same time. The sign of the static miss flips
+between datasets (over on WetLinks, under here), which makes the failure a
+property of the drift rather than of the method.
+
+Regime conditioning does not replicate. Under the online layer every axis is
+worse than no conditioning, including the measured geometry: level +1.1%,
+candidates +1.4%, geometry +4.0%, phase +4.2%, all four brief axes +6.3%, all
+well outside a standard error of 0.0077. In the static setting it still helps
+by about 3%.
+
+The mechanism is data starvation specific to the online form, tracking regime
+count rather than axis choice (correlation -0.571 between log10 outcomes per
+regime and P10). Static fits one offset per regime once; online must converge
+one alpha per regime from a stream.
+
+Two process notes worth keeping:
+
+- The first pass used StarNet's published strides and was underpowered: ~450
+  decisions in the P10 slice and a 37% fallback rate at fine granularity. It is
+  kept at `results/starnet_regime_stride_published/` and must not be quoted.
+- The first reading of the powered table ranked static BG-CFQS best on P10.
+  That was wrong: it was spending 0.289 of a 0.35 budget, and conservatism buys
+  P10 directly. Methods here have to be compared at matched achieved risk.
+
 ## Phase 5. Cross location analysis for O1
 
 Status: done in its weak form. `results/final/cross-site-holdout-Enschede`,
