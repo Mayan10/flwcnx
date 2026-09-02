@@ -114,15 +114,25 @@ class RunResult:
 
 
 def _environment() -> dict:
+    """What produced this result, including which device it landed on.
+
+    The device matters for traceability: `docs/limitations.md` section 4b
+    records that every reported number was computed on one machine, and a
+    result file that does not say which one cannot support that claim.
+    """
     import torch
+
+    from flwcnx.device import describe_device, resolve_device
 
     return {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "python": platform.python_version(),
         "platform": platform.platform(),
+        "machine": platform.machine(),
         "torch": torch.__version__,
         "numpy": np.__version__,
         "pandas": pd.__version__,
+        "compute": describe_device(resolve_device("auto")),
     }
 
 

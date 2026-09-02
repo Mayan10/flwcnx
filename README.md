@@ -6,7 +6,7 @@
 [![CI](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml/badge.svg)](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-235%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-248%20passing-brightgreen.svg)](tests/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Reproduction gates](https://img.shields.io/badge/reproduction%20gates-2%2F2%20passed-brightgreen.svg)](docs/paper/report.md#4-reproduction-gates)
 
@@ -94,6 +94,25 @@ session-hour while credits only bite below three nines. So the model reports the
 invariant instead: **a violated session-hour must cost 3.87x, 3.92x or 4.05x a
 sold one** (Chicago, Osnabruck, Victoria) before risk control pays. Consumer
 broadband does not clear 4x; enterprise and URLLC do.
+
+### The 15 s scheduling phase is recovered, not assumed
+
+![Edge-detection histograms peak at about 12 s on all three continents](docs/figures/finding-phase-recovery.png)
+
+Casparsen et al. establish that Starlink reschedules at the 12th, 27th, 42nd and
+57th second of each minute, from 500 Hz latency probes at one European site. Our
+phase recovery never hardcodes that: it edge-detects on the first difference of
+**throughput** at 1 Hz, and returns 11.98 s, 12.09 s and 12.25 s on three
+continents.
+
+The histogram is the point. An offset printed on its own is unfalsifiable; a
+flat histogram beside a confident number is exactly the failure this figure
+would expose, and these are not flat.
+
+This is corroboration of someone else's result with a coarser instrument, not a
+discovery: the 15 s throughput signature is already reported by Mohan et al.
+(WWW 2024) and modelled by StarNet. It belongs here as evidence that the feature
+layer is doing what it claims.
 
 ## Where this work fails
 
@@ -233,6 +252,45 @@ average and lost precisely in the low capacity regime where over allocation
 actually drops sessions. **That failure reproduces here on independent data**:
 the uncalibrated forecaster runs at 0.505 globally and 0.841 at P10.
 
+## Running it on your machine
+
+The project was developed on Apple silicon and is tested on Linux across Python
+3.11, 3.12 and 3.13. Two portability problems were found by running it
+elsewhere, and both are now handled rather than assumed away.
+
+**Device.** `flwcnx/device.py` picks CUDA, then MPS, then CPU. An explicit
+request for a device the machine does not have is a warning and a fallback, not
+an error, so a run on a borrowed laptop still completes. The MPS probe is
+guarded, because `torch.backends.mps` does not exist on every torch build and
+the original unguarded check raised during setup.
+
+```bash
+FLWCNX_DEVICE=cpu python scripts/run_demo.py --location canada   # pin a device
+```
+
+Every result file records the device it ran on, which is what lets
+`docs/limitations.md` section 4b say honestly that no result here has
+independent hardware confirmation.
+
+**Memory.** Windowing the US trace at stride 1 wants roughly 1.7 GB for the
+inputs alone, before the model or the split copy. On a laptop that used to be an
+OOM kill with no explanation; it is now an error naming the two knobs that fix
+it:
+
+```
+windowing 1,123,802 sequences of 30 x 13 needs about 3.5 GB, over the 8.0 GB limit.
+  Raise the limit:  FLWCNX_MEMORY_LIMIT_GB=4
+  Or window less:   --stride 7 (currently 1)
+```
+
+The default budget is 8 GB, deliberately conservative rather than a measurement
+of the host. Set `FLWCNX_MEMORY_LIMIT_GB` to raise it.
+
+**Modest machines.** Every script takes `--stride`; raising it is the single
+most effective knob. A stride above the horizon also makes scored decisions
+disjoint, which is the honest denominator for a risk rate. The full test suite
+needs no dataset and no GPU.
+
 ## Install
 
 ```bash
@@ -282,7 +340,7 @@ these. Each run writes `result.json` with a configuration snapshot beside it;
 the figure and table generators recompute nothing.
 
 ```bash
-pytest -q                                               # 235 tests, synthetic fixtures
+pytest -q                                               # 248 tests, synthetic fixtures
 
 python scripts/reproduce_starnet.py --location all      # gate 1: StarNet accuracy
 python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2: BG-CFQS risk table

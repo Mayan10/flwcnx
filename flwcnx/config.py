@@ -439,15 +439,13 @@ def seed_everything(seed: int) -> int:
 
 
 def resolve_device(preference: str = "auto") -> str:
-    """Pick a torch device. StarNet trains on CUDA; MPS is the fallback here."""
-    if preference != "auto":
-        return preference
-    try:
-        import torch
-    except ImportError:
-        return "cpu"
-    if torch.cuda.is_available():
-        return "cuda"
-    if torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
+    """Pick a torch device. Delegates to `flwcnx.device`.
+
+    Kept here because every call site imports it from this module. The real
+    logic moved once the original version turned out to be Mac-shaped: it
+    called `torch.backends.mps.is_available()` unguarded, which raises on a
+    torch build without that backend.
+    """
+    from flwcnx.device import resolve_device as _resolve
+
+    return _resolve(preference)

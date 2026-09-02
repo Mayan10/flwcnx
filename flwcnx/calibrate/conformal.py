@@ -106,12 +106,3 @@ def fit_conformal(predicted: np.ndarray, actual: np.ndarray, epsilon: float,
     offset = float(residuals[k - 1] if direction == "lower" else residuals[n - k])
     achieved = over_rate(predicted + offset, actual, direction)
     return ConformalBound(offset, epsilon, n, k, achieved, direction=direction)
-
-
-def calibrate_and_apply(predicted_cal: np.ndarray, actual_cal: np.ndarray,
-                        predicted_test: np.ndarray, epsilon: float,
-                        floor: float = 0.0,
-                        direction: str = "lower") -> tuple[np.ndarray, ConformalBound]:
-    """Convenience path: fit on calibration, apply to test."""
-    bound = fit_conformal(predicted_cal, actual_cal, epsilon, floor, direction)
-    return bound.apply(predicted_test, floor), bound

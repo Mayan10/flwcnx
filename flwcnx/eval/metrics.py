@@ -123,11 +123,6 @@ def over_rate(predicted: np.ndarray, actual: np.ndarray,
                  else np.mean(predicted < actual))
 
 
-def under_rate(predicted: np.ndarray, actual: np.ndarray) -> float:
-    """Fraction of predictions strictly below the actual. The upper-bound risk."""
-    return over_rate(predicted, actual, direction="upper")
-
-
 def _unsafe_error(predicted: np.ndarray, actual: np.ndarray, direction: str) -> np.ndarray:
     """The unsafe component of the error, clipped at zero."""
     return (np.maximum(predicted - actual, 0.0) if direction == "lower"

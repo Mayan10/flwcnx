@@ -168,7 +168,23 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(f"  no adaptation trace at {trace_path.name}")
 
-    # -- 5. the spread the headline number hides ---------------------------
+    # -- 5. dropped sessions, which is what a user would actually notice ---
+    admission = payload.get("admission") or {}
+    tables = {}
+    for method in HEADLINE_METHODS:
+        wanted = "global" if method in ("point", "global_conformal",
+                                        "adaptive_global_conformal") else granularity
+        rows = admission.get(f"{method}|eps={epsilon:.2f}|regime={wanted}")
+        if rows:
+            tables[method] = pd.DataFrame(rows)
+    if tables:
+        try:
+            written.append(figures.admission_comparison(
+                tables, outdir / "admission_dropped_sessions.pdf"))
+        except (KeyError, ValueError) as exc:
+            print(f"  skipped admission_comparison: {exc}")
+
+    # -- 6. the spread the headline number hides ---------------------------
     for method in ("global_conformal", "adaptive_regime_conformal"):
         name = f"regime_{method}_eps{epsilon:.2f}_regime{granularity}.csv"
         path = directory / name

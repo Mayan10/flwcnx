@@ -241,7 +241,7 @@ suggest the embedding's contribution sits in the tail rather than the mean.
 
 Status: **done**, 2026-09-02.
 
-- 235 tests, ruff clean, CI on Python 3.11 / 3.12 / 3.13.
+- 248 tests, ruff clean, CI on Python 3.11 / 3.12 / 3.13.
 - Both deliverables written: `docs/paper/paper.md` and `docs/paper/report.md`.
 - A working demonstration, `scripts/run_demo.py`, with a causality test.
 - `LICENSE`, `CITATION.cff`, `docs/README.md` index, README badges.
@@ -370,3 +370,38 @@ within 5% of each other.
 
 All six industry needs are now addressed. Requirement 3, congestion, remains the
 weakest and `docs/paper/report.md` section 5.4 says so with the numbers.
+
+## Phase 8. Portability and cleanup
+
+Status: done, 2026-09-02.
+
+**Device.** `flwcnx/device.py` replaces a device check that was Mac-shaped: it
+called `torch.backends.mps.is_available()` unguarded, which raises
+`AttributeError` on a torch build without that backend, during setup and before
+any useful message. Detection is now guarded, `FLWCNX_DEVICE` overrides
+everything, and an unavailable request warns and falls back rather than failing,
+because a run on a borrowed laptop is still valid, only slower. Verified end to
+end on CPU. Every result file now records the device it ran on, which is what
+lets the limitation about single-machine results be stated rather than assumed.
+
+**Memory.** Windowing had no size guard. The US trace at stride 1 wants about
+1.7 GB for the inputs alone, which on a laptop was an OOM kill with no
+explanation. `check_memory_budget` estimates before allocating and raises an
+error naming the two knobs that fix it, with a suggested stride that is tested
+to actually bring the run under the limit.
+
+**Dead code.** Three functions written and never used were removed:
+`global_label_for`, `calibrate_and_apply` and `under_rate`, each a wrapper whose
+body was one call to something else. Two unused figure generators were **wired
+up rather than deleted**, since both produce something a reviewer could ask for:
+`admission_comparison` into the per-run figure driver, and `phase_histogram`
+into the README as the evidence that the scheduling phase was recovered rather
+than assumed.
+
+Kept deliberately, despite being unreferenced: the live path (`fetch_hourly`,
+`fetch_tles`, `load_tles`, `load_cached`), the DTW serving-satellite matcher,
+and the diagnostic reporters. All are contribution-boundary items and all are
+documented as unvalidated in `docs/limitations.md`.
+
+**Repo.** Largest tracked file is 288 KB. The 200 MB under `results/` is
+gitignored and every directory in it backs a committed summary, so it stays.

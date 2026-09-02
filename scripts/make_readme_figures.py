@@ -381,7 +381,61 @@ def fig_congestion_weak(root: Path, out: Path) -> Path | None:
     return _save(fig, out / "limitation-congestion-weak.png")
 
 
-FIGURES = (fig_floor, fig_budget_tracking, fig_availability,
+def fig_phase_evidence(root: Path, out: Path) -> Path | None:
+    """Evidence that the scheduling phase was recovered rather than assumed.
+
+    A recovered offset printed on its own is unfalsifiable. The histogram is
+    what makes it checkable: a flat one with a confident number beside it is
+    exactly the failure this figure exposes.
+
+    Needs the traces, so it is skipped rather than faked when they are absent.
+    """
+    try:
+        from flwcnx.config import DataConfig
+        from flwcnx.ingest.replay import ReplaySource
+        from flwcnx.state.phase import recover_phase
+    except ImportError:                        # pragma: no cover
+        return None
+
+    references = {}
+    for loc, label in STARNET.items():
+        try:
+            frame = ReplaySource(DataConfig(location=loc)).load_frame()
+        except (FileNotFoundError, OSError):
+            continue
+        references[label] = recover_phase(frame)
+    if not references:
+        return None
+
+    fig, axes = plt.subplots(1, len(references), figsize=(3.6 * len(references), 3.5),
+                             sharey=False)
+    axes = np.atleast_1d(axes)
+    for ax, (label, ref), colour in zip(axes, references.items(),
+                                        [BLUE, ORANGE, AQUA], strict=False):
+        centres = (ref.bin_edges[:-1] + ref.bin_edges[1:]) / 2
+        ax.bar(centres, ref.histogram, width=0.85, color=colour, zorder=3,
+               edgecolor=SURFACE, linewidth=1.2)
+        ax.axvline(ref.offset_seconds, color=TEXT_PRIMARY, linewidth=1.5,
+                   linestyle="--", zorder=4)
+        ax.annotate(f"{ref.offset_seconds:.2f} s", (ref.offset_seconds,
+                    ref.histogram.max()), textcoords="offset points",
+                    xytext=(5, -4), fontsize=10, color=TEXT_PRIMARY, va="top")
+        _style(ax, title=label, xlabel="phase within the 15 s period (s)")
+        ax.set_ylabel("edges detected" if ax is axes[0] else "",
+                      color=TEXT_SECONDARY, fontsize=10)
+    # tight_layout first, then the header, so the two are laid out against the
+    # final axes rather than fighting over the same strip of figure.
+    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    fig.text(0.005, 0.985, "The 15 s scheduling phase is recovered, not assumed",
+             color=TEXT_PRIMARY, fontsize=13, ha="left", va="top",
+             fontweight="medium")
+    fig.text(0.005, 0.915, "Edge-detection histograms on 1 Hz throughput. Casparsen et al. "
+             "report 12 s from 500 Hz latency probes at one European site",
+             fontsize=9.5, color=TEXT_SECONDARY, ha="left", va="top")
+    return _save(fig, out / "finding-phase-recovery.png")
+
+
+FIGURES = (fig_floor, fig_budget_tracking, fig_availability, fig_phase_evidence,
            fig_conditioning_fails, fig_gate_fails, fig_congestion_weak)
 
 

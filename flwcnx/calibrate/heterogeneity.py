@@ -48,7 +48,7 @@ import pandas as pd
 from flwcnx.calibrate.adaptive import offset_for_alpha
 from flwcnx.config import CalibrationConfig
 from flwcnx.eval.metrics import check_direction
-from flwcnx.state.regime import GLOBAL_LABEL, RegimeAssigner
+from flwcnx.state.regime import RegimeAssigner
 
 #: Regimes with fewer calibration points than this do not get a vote. Their
 #: offset standard error is enormous, and Q weights by inverse variance, so
@@ -327,8 +327,3 @@ class GatedCalibrator:
         if self.inner is not None and hasattr(self.inner, "summary"):
             out["inner"] = self.inner.summary()              # type: ignore[attr-defined]
         return out
-
-
-def global_label_for(covariates: pd.DataFrame) -> np.ndarray:
-    """Every row in one regime. Used when the gate says do not condition."""
-    return np.full(len(covariates), GLOBAL_LABEL, dtype=object)

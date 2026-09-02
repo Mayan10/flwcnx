@@ -32,6 +32,7 @@ from flwcnx.config import (
     WETLINKS_SECONDS_FEATURE_COLUMNS,
     FeatureConfig,
 )
+from flwcnx.device import check_memory_budget
 from flwcnx.state.phase import FIXED_PHASE_OFFSET, PhaseReference, assign_phase, recover_phase
 from flwcnx.state.satellite import SatelliteEncoder, resolve_from_frame
 
@@ -276,6 +277,15 @@ def make_sequences(
     missing = [c for c in feature_names if c not in frame.columns]
     if missing:
         raise KeyError(f"feature frame is missing {missing}; call build_features first")
+
+    # Estimate before allocating. Windowing the US trace at stride 1 wants
+    # about 1.7 GB for the inputs alone, which on a laptop is an OOM kill with
+    # no explanation; this turns it into a message naming the two knobs.
+    n_windows = sum(max((len(part) - total) // stride + 1, 0)
+                    for _, part in frame.groupby("segment", sort=False)
+                    if len(part) >= total)
+    check_memory_budget(n_windows, lookback, len(feature_names), horizon,
+                        stride=stride)
 
     xs, ys, phases, origins, segments = [], [], [], [], []
     regime_rows: list[np.ndarray] = []
