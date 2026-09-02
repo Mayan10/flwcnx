@@ -83,6 +83,42 @@ FEATURE_CLASSES: dict[str, tuple[str, ...]] = {
     "weather": ("cloud_cover_pct", "pressure_hpa", "humidity_pct"),
 }
 
+# The feature set for the latency target. StarNet excludes latency from their
+# model inputs (their loader drops ['timestamp', 'latency', 'throughput'] from
+# the attribute channels and carries throughput as its own), so forecasting
+# latency needs its own set rather than a flag.
+#
+# Latency is the target and therefore its own history channel. Throughput joins
+# as an attribute: it is observable at prediction time and a loaded link and a
+# slow one are not independent, so excluding it would be throwing away a
+# legitimate predictor. Everything else is the StarNet attribute list unchanged,
+# which keeps the two targets comparable.
+LATENCY_FEATURE_COLUMNS: tuple[str, ...] = (
+    LATENCY_COL,
+    TARGET_COL,
+    "sat_id_encoded",
+    "elevation_deg",
+    "azimuth_deg",
+    "distance_km",
+    "candidate_count",
+    "phase_seconds",
+    "minute",
+    "hour",
+    "day_of_week",
+    "cloud_cover_pct",
+    "pressure_hpa",
+    "humidity_pct",
+)
+
+LATENCY_FEATURE_CLASSES: dict[str, tuple[str, ...]] = {
+    "latency": (LATENCY_COL,),
+    "throughput": (TARGET_COL,),
+    "satellite": ("sat_id_encoded", "elevation_deg", "azimuth_deg", "distance_km",
+                  "candidate_count"),
+    "time": ("phase_seconds", "minute", "hour", "day_of_week"),
+    "weather": ("cloud_cover_pct", "pressure_hpa", "humidity_pct"),
+}
+
 # Starlink reschedules on a 15 second cadence. This shows up everywhere from
 # the periodical embedding to the regime definition, so it lives here once.
 PERIOD_SECONDS: int = 15
@@ -204,6 +240,12 @@ class FeatureConfig:
     stride: int = 1
     recover_phase: bool = True     # else fall back to the fixed 12/27/42/57 offset
     standardize: bool = True
+    #: Which column the model forecasts. Throughput is the default and drives
+    #: the allocation story; `latency_ms` is the other target the StarNet traces
+    #: support, and it flips the bound direction (see `ExperimentConfig.direction`).
+    #: The column must also be present in the feature set, because the model
+    #: reads its own history.
+    target_column: str = TARGET_COL
 
 
 @dataclass(frozen=True)
@@ -331,6 +373,11 @@ class ExperimentConfig:
 
     @property
     def feature_columns(self) -> tuple[str, ...]:
+        # The target decides the set before the dataset does: forecasting
+        # latency needs latency as an input channel, and StarNet's own set
+        # deliberately excludes it.
+        if self.features.target_column == LATENCY_COL:
+            return LATENCY_FEATURE_COLUMNS
         if self.dataset == "wetlinks":
             return WETLINKS_FEATURE_COLUMNS
         if self.dataset == "wetlinks_seconds":
@@ -346,7 +393,13 @@ class ExperimentConfig:
         latency. `wetlinks_seconds` is the per-second iperf release, which is
         real capacity, so it goes back to the lower bound the whole
         allocation story is built on.
+
+        The target column wins over the dataset: a latency target is an upper
+        bound wherever it is run, because the risk is always promising a delay
+        the link will not meet.
         """
+        if self.features.target_column == LATENCY_COL:
+            return "upper"
         return "upper" if self.dataset == "wetlinks" else "lower"
 
     def to_dict(self) -> dict[str, Any]:

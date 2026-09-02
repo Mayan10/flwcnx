@@ -27,9 +27,20 @@ money, because capacity it declined to sell is capacity nobody paid for. Pricing
 that as foregone revenue is what makes the comparison two-sided; without it,
 the optimal policy is trivially "admit nothing".
 
-Default prices are illustrative and are stated as such. The point of the model
-is the *shape* of the trade-off, which is invariant to the constants, and every
-figure produced through it carries the price assumptions in its config snapshot.
+Default prices are illustrative and are stated as such. **The ranking of
+policies is not invariant to them**, which is the first thing measurement
+showed: under commodity pricing, where a session-hour is worth little and the
+credit ladder only bites below three nines, the aggressive policy is cheapest,
+because foregone revenue accrues on every unsold session-hour while credits are
+a small fraction of a small prorated fee. Risk control starts paying only once
+a violation costs enough relative to a sale.
+
+So the model reports the **break-even ratio** rather than a single verdict:
+`break_even_credit_ratio` is how much more expensive an SLA violation has to be,
+relative to the revenue on a session-hour, before a given policy beats another.
+That number is a property of the link and the policy pair, not of our price
+guesses, and it is what an operator would actually check against their own
+contract.
 """
 
 from __future__ import annotations
@@ -289,3 +300,62 @@ def evaluate_policy(name: str, bound_mbps: np.ndarray, actual_mbps: np.ndarray,
     cost = cost_report(admitted, actual_mbps, sla, report)
     return PolicyOutcome(name=name, availability=report, cost=cost,
                          extras={"mean_admitted": round(float(admitted.mean()), 4)})
+
+
+def break_even_credit_ratio(conservative: np.ndarray, aggressive: np.ndarray,
+                            actual_mbps: np.ndarray,
+                            sla: ServiceLevelAgreement) -> dict:
+    """How costly must a violation be before the conservative policy wins?
+
+    The two cost terms scale with different prices. Foregone revenue scales with
+    `revenue_per_session_hour`; SLA credits scale with the fee and the credit
+    ladder. Their ratio therefore decides the ranking, and our defaults are
+    guesses.
+
+    Rather than pick a number, solve for the one where the policies tie. Model a
+    violation as costing `k` times the revenue on a session-hour, and price each
+    policy as
+
+        cost(k) = unsold_session_hours * r + violated_session_hours * r * k
+
+    Both are linear in `k`, so the crossing is closed form. Returned alongside
+    the raw quantities so a reader can substitute their own contract.
+
+    A ratio at or below zero means the conservative policy wins outright. A very
+    large one means it needs an implausibly expensive violation to be worth it,
+    which is itself a finding about the link.
+    """
+    per = sla.bandwidth_per_session_mbps
+    slot_hours = sla.seconds_per_slot / 3600.0
+    actual = np.asarray(actual_mbps, dtype=float)
+    servable = np.floor(np.maximum(actual, 0.0) / per)
+
+    def terms(bound: np.ndarray) -> tuple[float, float]:
+        admitted = np.floor(np.maximum(np.asarray(bound, dtype=float), 0.0) / per)
+        unsold = float(np.maximum(servable - admitted, 0.0).sum()) * slot_hours
+        violated = float(np.maximum(admitted - servable, 0.0).sum()) * slot_hours
+        return unsold, violated
+
+    unsold_c, violated_c = terms(conservative)
+    unsold_a, violated_a = terms(aggressive)
+
+    # cost_c(k) = unsold_c + violated_c*k ; cost_a(k) = unsold_a + violated_a*k
+    # Tie when (unsold_c - unsold_a) = k * (violated_a - violated_c).
+    numerator = unsold_c - unsold_a
+    denominator = violated_a - violated_c
+    if abs(denominator) < 1e-12:
+        ratio = float("inf") if numerator > 0 else float("-inf")
+    else:
+        ratio = numerator / denominator
+
+    return {
+        "break_even_credit_ratio": round(float(ratio), 3),
+        "conservative_unsold_session_hours": round(unsold_c, 3),
+        "conservative_violated_session_hours": round(violated_c, 3),
+        "aggressive_unsold_session_hours": round(unsold_a, 3),
+        "aggressive_violated_session_hours": round(violated_a, 3),
+        "interpretation": (
+            "a violated session-hour must cost at least this many times a sold "
+            "session-hour before the conservative policy is cheaper"
+        ),
+    }

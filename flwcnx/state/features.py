@@ -20,8 +20,9 @@ import pandas as pd
 from flwcnx.config import (
     FEATURE_CLASSES,
     FEATURE_COLUMNS,
+    LATENCY_FEATURE_CLASSES,
+    LATENCY_FEATURE_COLUMNS,
     PERIOD_SECONDS,
-    TARGET_COL,
     TIME_COL,
     WETLINKS_FEATURE_CLASSES,
     WETLINKS_FEATURE_COLUMNS,
@@ -143,7 +144,9 @@ class SequenceSet:
         """
         lookup = {name: i for i, name in enumerate(self.feature_names)}
         names = set(self.feature_names)
-        if names == set(WETLINKS_SECONDS_FEATURE_COLUMNS):
+        if names == set(LATENCY_FEATURE_COLUMNS):
+            classes = LATENCY_FEATURE_CLASSES
+        elif names == set(WETLINKS_SECONDS_FEATURE_COLUMNS):
             classes = WETLINKS_SECONDS_FEATURE_CLASSES
         elif names == set(WETLINKS_SECONDS_BASE_COLUMNS):
             classes = WETLINKS_SECONDS_BASE_CLASSES
@@ -251,15 +254,25 @@ def make_sequences(
 ) -> SequenceSet:
     """Window a feature frame into look-back and horizon pairs.
 
-    Windows never cross a segment boundary. The target stays in Mbps whatever
-    the inputs are scaled to, because every metric in the evaluation protocol
-    is defined in Mbps and converting back and forth invites an error that is
-    invisible in the numbers.
+    Windows never cross a segment boundary. The target stays in its own units
+    whatever the inputs are scaled to, because every metric in the evaluation
+    protocol is defined in those units and converting back and forth invites an
+    error that is invisible in the numbers.
+
+    `config.target_column` selects what is forecast. It defaults to throughput
+    and must also appear in `feature_names`, since the model reads the target's
+    own history as an input.
     """
     config = config or FeatureConfig()
     lookback, horizon, stride = config.lookback, config.horizon, config.stride
+    target_column = config.target_column
     total = lookback + horizon
 
+    if target_column not in feature_names:
+        raise ValueError(
+            f"target {target_column!r} is not in the feature set. The model reads "
+            "its own history, so the target has to be one of its inputs."
+        )
     missing = [c for c in feature_names if c not in frame.columns]
     if missing:
         raise KeyError(f"feature frame is missing {missing}; call build_features first")
@@ -273,7 +286,7 @@ def make_sequences(
         values = part[list(feature_names)].to_numpy(dtype=float)
         if standardizer is not None:
             values = standardizer.transform(values)
-        target = part[TARGET_COL].to_numpy(dtype=float)
+        target = part[target_column].to_numpy(dtype=float)
         phase = part["phase_seconds"].to_numpy(dtype=float)
         times = part[TIME_COL].to_numpy()
         # reindex rather than select: a dataset that lacks an axis gets NaN
@@ -312,7 +325,7 @@ def make_sequences(
         origin_time=np.asarray(origins),
         segment=np.asarray(segments, dtype=np.int64),
         feature_names=tuple(feature_names),
-        target_index=list(feature_names).index(TARGET_COL),
+        target_index=list(feature_names).index(target_column),
     )
 
 
