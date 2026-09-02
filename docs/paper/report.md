@@ -31,7 +31,7 @@ The design decision that makes the whole thing testable is that congestion is
 committed allocation for a sustained window. Issue 2 costs almost nothing and
 the system stays coherent.
 
-**Status: complete and running.** 193 tests, lint clean, CI on Python 3.11 to 3.13, both reproduction gates
+**Status: complete and running.** 235 tests, lint clean, CI on Python 3.11 to 3.13, both reproduction gates
 passed, a working demonstration, and every reported number traceable to a run
 with its configuration snapshot beside it.
 
@@ -232,14 +232,63 @@ would very likely beat it. The brief's own framing preferred the derived form
 for system coherence, and that trade was taken deliberately, but the cost of it
 is in this table rather than in a footnote.
 
-### 5.5 Latency spike prediction
+### 5.5 Latency spike prediction, and a structural point about static calibration
 
-Requirement 1, and the first the brief names. See section 5.8 for the numbers;
-the framing is Casparsen's period-level Good/Degraded classification with the
-spike decision read off a risk-controlled upper bound rather than a second
-trained model, so the operating point is set by the risk budget.
+Requirement 1, the first the brief names. Casparsen's period-level
+Good/Degraded framing with the spike decision read off a risk-controlled upper
+bound rather than a second trained model. Full tables in
+`results/summary/requirements-1-5-6.md`.
 
-### 5.6 Two negative results, reported in full
+**The two-directional budget failure reproduces on a second target, worse.**
+Budget 0.10, UnderRate achieved:
+
+| location | latency MAE | online | static |
+|---|---|---|---|
+| Chicago | 3.37 ms | **0.101** | 0.143 (+43%) |
+| Osnabruck | 7.59 ms | **0.100** | 0.313 (+213%) |
+| Victoria | 27.22 ms | **0.088** | 0.033 (-67%) |
+
+Static conformal overshoots by a factor of three on one link and undershoots by
+two thirds on another. The online layer lands within 0.012 everywhere. That the
+same failure appears with the bound direction flipped is better evidence that it
+is a property of the link than the throughput result alone was.
+
+**A structural finding.** The point forecast and the static bound have
+*identical* AUPRC, exactly, on all three locations (0.628, 0.348, 0.360). This
+is provable rather than coincidental: a static conformal bound is the point
+forecast plus a constant, adding a constant cannot reorder predictions, and
+AUPRC depends only on the ordering. **Static calibration is mathematically
+incapable of improving a ranking.** The online per-regime bound is not a
+constant offset, so it can reorder, and on two of three locations it improves
+AUPRC by 43% and 51%. This argues for the online form without relying on any
+calibration result.
+
+### 5.6 Availability and operational cost
+
+Requirements 5 and 6. Calibration moves the link from roughly **one nine to
+two** (93.4% to 99.2% availability), cuts outage count five to six fold, and
+shortens mean outage from about nine seconds to five. No policy reaches three
+nines; the best is 2.13.
+
+On cost, the honest answer is that the ranking depends on prices we guessed.
+Under commodity pricing the aggressive policy is cheapest, because foregone
+revenue accrues on every unsold session-hour while credits only bite below three
+nines. So the model reports the invariant instead: **how much more a violated
+session-hour must cost than a sold one before risk control pays.**
+
+| location | break-even ratio |
+|---|---|
+| Chicago | 3.87x |
+| Osnabruck | 3.92x |
+| Victoria | 4.05x |
+
+Within 5% across three independent links on two continents, which makes it the
+most stable number in the project. Consumer broadband does not clear 4x and
+should allocate aggressively; enterprise and URLLC contracts clear it
+comfortably and should not. That is a rule an operator can check against their
+own contract without adopting any of our assumptions.
+
+### 5.7 Two negative results, reported in full
 
 **The heterogeneity gate does not work.** We tried to predict which datasets
 benefit from conditioning, using Cochran's Q on calibration-split per-regime
@@ -341,7 +390,7 @@ and checkable by a reader in ten minutes.
 ## 9. Reproducing everything
 
 ```bash
-pytest -q                                       # 193 tests
+pytest -q                                       # 235 tests
 
 python scripts/reproduce_starnet.py --location all      # gate 1
 python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2

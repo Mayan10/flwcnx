@@ -241,7 +241,7 @@ suggest the embedding's contribution sits in the tail rather than the mean.
 
 Status: **done**, 2026-09-02.
 
-- 193 tests, ruff clean, CI on Python 3.11 / 3.12 / 3.13.
+- 235 tests, ruff clean, CI on Python 3.11 / 3.12 / 3.13.
 - Both deliverables written: `docs/paper/paper.md` and `docs/paper/report.md`.
 - A working demonstration, `scripts/run_demo.py`, with a causality test.
 - `LICENSE`, `CITATION.cff`, `docs/README.md` index, README badges.
@@ -337,3 +337,36 @@ benefit. Withdrawn in README, novelty-assessment, starnet-regime-grid and the
 project memory.
 
 This removes the last candidate for a methods contribution.
+
+## Phase 7. The three unaddressed industry needs
+
+Status: done, 2026-09-02. `results/summary/requirements-1-5-6.md`.
+
+An audit against the brief's six industry needs found three of them
+unaddressed: predict latency spikes, improve service availability, and reduce
+operational costs. All three are now measured on all three StarNet locations.
+
+**Requirement 1, latency spikes.** `state/latency.py` implements Casparsen's
+period-level Good/Degraded framing with the spike decision read off a
+risk-controlled upper bound. The two-directional budget failure reproduces on
+this second target and more severely: static conformal overshoots its 0.10
+budget by 213% on Osnabruck and undershoots by 67% on Victoria, while the online
+layer lands within 0.012 everywhere.
+
+A structural finding came out of it. Point forecast and static bound have
+identical AUPRC, exactly, on all three locations, because a static bound is the
+point forecast plus a constant and AUPRC depends only on the ordering. Static
+calibration cannot improve a ranking. The online bound can, and does, by 43% and
+51% on two of three links.
+
+**Requirements 5 and 6, availability and cost.** `decide/sla.py`. Calibration
+moves the link from about one nine to two, cuts outages five to six fold, and
+halves mean outage duration. No policy reaches three nines.
+
+The cost ranking turned out to depend on price constants we guessed, and the
+module docstring had claimed otherwise. Corrected: the invariant is the
+break-even ratio, which lands at 3.87x, 3.92x and 4.05x on the three links,
+within 5% of each other.
+
+All six industry needs are now addressed. Requirement 3, congestion, remains the
+weakest and `docs/paper/report.md` section 5.4 says so with the numbers.

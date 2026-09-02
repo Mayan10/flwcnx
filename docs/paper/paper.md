@@ -26,7 +26,12 @@ four datasets the achieved rate is identical at budgets of 0.05, 0.10 and 0.15,
 overshooting by 1.4x to 3.7x at the tightest. The paper evaluates only at 0.35,
 where the floor never binds.
 
-Third, we evaluate the natural remedy, group-conditional online recalibration,
+Third, we show that static conformal calibration cannot improve a ranking at
+all, only shift an operating point along an unchanged curve, and confirm the
+consequence exactly on latency spike detection. Online calibration is not so
+constrained and improves detection AUPRC by up to 51%.
+
+Fourth, we evaluate the natural remedy, group-conditional online recalibration,
 and find that it splits into two mechanisms with very different standing. The
 online part replicates: it tracks the budget within 1% at every point from 0.05
 to 0.35, where static calibration is 16 to 21% off, and it dominates static
@@ -110,6 +115,24 @@ full prior-art accounting, including what we found *and* what closed off.
    intuition that measurable heterogeneity predicts benefit is appealing and
    cheap to implement. It is wrong on our data, in two independent ways, and we
    report the failure with the mechanism. (Section 5.4)
+
+6. **Static conformal calibration cannot improve a ranking, only an operating
+   point.** A static bound is the point forecast plus a constant; adding a
+   constant does not reorder predictions; AUPRC depends only on the order. We
+   observe the consequence exactly, to three decimal places, on all three
+   locations: point forecast and static bound score identical AUPRC for latency
+   spike detection. An online per-regime bound is not a constant offset, so it
+   can reorder, and improves AUPRC by 43% and 51% on two of three links. This is
+   a reason to prefer online calibration that is independent of every risk
+   result in this paper. (Section 5.6)
+
+7. **A price-invariant decision rule for whether risk control is worth
+   deploying.** Whether a conservative allocator beats an aggressive one depends
+   on prices, and under commodity pricing it does not. The invariant is the
+   break-even ratio: how much more a violated session-hour must cost than a sold
+   one. It lands at 3.87x, 3.92x and 4.05x on three independent links, within 5%
+   of each other. Consumer broadband does not clear it; enterprise and URLLC do.
+   (Section 5.7)
 
 **What we do not claim.** The two mechanisms evaluated here are both published:
 group-conditional online recalibration is GCACI, and deciding whether to

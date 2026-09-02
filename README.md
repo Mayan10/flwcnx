@@ -6,7 +6,7 @@
 [![CI](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml/badge.svg)](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-193%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-235%20passing-brightgreen.svg)](tests/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Reproduction gates](https://img.shields.io/badge/reproduction%20gates-2%2F2%20passed-brightgreen.svg)](docs/paper/report.md#4-reproduction-gates)
 
@@ -261,7 +261,7 @@ these. Each run writes `result.json` with a configuration snapshot beside it;
 the figure and table generators recompute nothing.
 
 ```bash
-pytest -q                                               # 193 tests, synthetic fixtures
+pytest -q                                               # 235 tests, synthetic fixtures
 
 python scripts/reproduce_starnet.py --location all      # gate 1: StarNet accuracy
 python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2: BG-CFQS risk table
