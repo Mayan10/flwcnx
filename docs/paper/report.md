@@ -39,12 +39,32 @@ with its configuration snapshot beside it.
 
 ## 2. Objectives
 
+### The four objectives
+
 | | Objective | Status |
 |---|---|---|
 | O1 | Analyze performance across time periods and locations | Done. Four datasets, three continents on the StarNet side, cross-site holdout on the WetLinks side. |
 | O2 | Study the influence of obstruction and satellite parameters | Done, and **the answer is negative**. See section 5.3. |
 | O3 | Develop and evaluate ML models for prediction | Done. StarNet reproduced within 1.1% RMSE, six backbones compared. |
 | O4 | Design a predictive framework for connectivity quality | Done. Calibration and allocation layers, evaluated across four datasets and a full budget sweep. |
+
+### The six industry needs
+
+The brief names six and permits addressing three. All six are now addressed,
+three of them by the throughput pipeline and three added afterwards.
+
+| | Industry need | Status | Where |
+|---|---|---|---|
+| 1 | Predict latency spikes | Done | `state/latency.py`, section 5.5 |
+| 2 | Predict throughput degradation | Done | The forecaster. Section 4.1 |
+| 3 | Detect congestion before users are affected | Done, unevenly | `decide/congestion.py`, section 5.6 |
+| 4 | Optimize bandwidth allocation automatically | Done | `decide/admission.py`, section 5.2 |
+| 5 | Improve service availability | Done | `decide/sla.py`, section 5.7 |
+| 6 | Reduce operational costs | Done, with a caveat | `decide/sla.py`, section 5.7 |
+
+Requirements 1, 5 and 6 were added after an audit found them unaddressed, and
+they are reported with the same scepticism as the rest. Requirement 3 in
+particular is the weakest of the six and section 5.6 says why.
 
 ---
 
@@ -182,7 +202,44 @@ Robust to the learning rate: across seven values spanning two orders of
 magnitude, conditioning beat no conditioning in 8 of 42 cells, seven of them one
 location.
 
-### 5.4 Two negative results, reported in full
+### 5.4 Congestion detection works, unevenly, and this is the weakest of the six
+
+Requirement 3. Congestion is **derived**, not modelled: it is the calibrated
+bound sitting below the committed rate for a sustained window. That design
+choice is what makes it nearly free and what ties its quality to the bound's.
+
+Adaptive regime conformal, budget 0.35:
+
+| location | precision | recall | F1 | median warning lead |
+|---|---|---|---|---|
+| Chicago | 0.547 | 0.773 | 0.640 | 12 slots |
+| Osnabruck | 0.545 | 0.353 | 0.429 | 138 slots |
+| Victoria | 0.273 | 0.353 | 0.308 | 66 slots |
+
+**It satisfies the literal requirement.** Every median lead is positive, so the
+alarm fires 12 to 138 decision slots before the event, which is what "before
+users are affected" asks for.
+
+**It is not good.** Mean F1 across the three is 0.459, and on Victoria the
+detector is wrong roughly three times out of four when it fires. An operator
+paging on this would learn to ignore it. Recall on Osnabruck and Victoria is
+0.353, so two thirds of congestion events pass unannounced.
+
+The honest reading is that a derived detector inherits everything from the
+bound, including its variance, and on the two links where the bound is least
+well behaved the detector is close to useless. A trained congestion classifier
+would very likely beat it. The brief's own framing preferred the derived form
+for system coherence, and that trade was taken deliberately, but the cost of it
+is in this table rather than in a footnote.
+
+### 5.5 Latency spike prediction
+
+Requirement 1, and the first the brief names. See section 5.8 for the numbers;
+the framing is Casparsen's period-level Good/Degraded classification with the
+spike decision read off a risk-controlled upper bound rather than a second
+trained model, so the operating point is set by the risk budget.
+
+### 5.6 Two negative results, reported in full
 
 **The heterogeneity gate does not work.** We tried to predict which datasets
 benefit from conditioning, using Cochran's Q on calibration-split per-regime
