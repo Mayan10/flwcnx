@@ -449,6 +449,15 @@ Horizon dataset, leave-one-location-out, the training-window-length question.
 
 ## 12. Open questions to raise with Mayan
 
+> **Status as of 2026-09-03.** Questions 1, 2 and 4 are answered and the answers
+> are recorded where the work needed them: the supplied dataset is WetLinks
+> (`docs/supplied-dataset.md`), compute is Apple MPS with no CUDA and the project
+> now runs on CPU and CUDA too (`flwcnx/device.py`), and the deliverable is a
+> report, a paper and a demonstration, all three of which exist. Question 3, the
+> deadline, is still unanswered. Questions 5 to 7 were raised by the build and
+> are tracked in `docs/progress.md`.
+
+
 1. What is the dataset supplied with the problem statement? Columns, sampling rate, and whether the deliverable must use it.
 2. Is there a GPU available, and what kind? StarNet trains in about an hour on an RTX 3070.
 3. What is the actual submission deadline for the project?
