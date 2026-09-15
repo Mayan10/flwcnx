@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id                 String   @id @default(uuid())
+  name               String
+  domain             String   @unique
+  city               String
+  passwordHash       String
+  apiKey             String   @unique
+  sessionLimit       Int      @default(100)
+  currentSessions    Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  activities         Activity[]
+}
+
+model Activity {
+  id          String   @id @default(uuid())
+  companyId   String
+  description String
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id])
+}

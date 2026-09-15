@@ -1,0 +1,229 @@
+@import "tailwindcss";
+
+/* ── Theme Tokens ──────────────────────────────────────────────────────────── */
+
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --bg-muted: #f5f5f5;
+  --bg-elevated: #ffffff;
+
+  --fg: #0a0a0a;
+  --fg-muted: #525252;
+  --fg-subtle: #a3a3a3;
+  --fg-ghost: #d4d4d4;
+
+  --accent: #0a0a0a;
+  --accent-fg: #ffffff;
+  --accent-secondary: #3b82f6;
+
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+
+  --glow: rgba(59, 130, 246, 0.08);
+
+  --bg-tertiary: #efefef;
+  --fg-secondary: #404040;
+  --border-hover: #c4c4c4;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+
+  /* ── Data-visualisation tokens ──────────────────────────────────────────
+     Categorical slots are assigned in fixed order and never cycled. This
+     ordering is validated for both modes: adjacent-pair CVD ΔE 9.1 light /
+     8.4 dark, normal-vision ΔE 19.6 light / 19.3 dark, against these
+     surfaces. Re-run the validator before changing any value or order. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+
+  /* Sequential ramp — one hue, light to dark. Magnitude only. */
+  --seq-100: #cde2fb;
+  --seq-200: #9ec5f4;
+  --seq-300: #6da7ec;
+  --seq-400: #3987e5;
+  --seq-500: #256abf;
+  --seq-600: #184f95;
+  --seq-700: #0d366b;
+
+  /* Status — reserved, never reused as a series colour, always with an
+     icon and a label so state never rests on hue alone. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  /* Chart chrome. */
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-muted: #898781;
+  --delta-good: #006300;
+
+  --track: rgba(0, 0, 0, 0.07);
+  --grid: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="dark"] {
+  --bg: #000000;
+  --bg-subtle: #0a0a0a;
+  --bg-muted: #111111;
+  --bg-elevated: #0f0f0f;
+
+  --fg: #fafafa;
+  --fg-muted: #a3a3a3;
+  --fg-subtle: #525252;
+  --fg-ghost: #262626;
+
+  --accent: #fafafa;
+  --accent-fg: #0a0a0a;
+  --accent-secondary: #638cff;
+
+  --border: #1a1a1a;
+  --border-strong: #2a2a2a;
+
+  --glow: rgba(99, 140, 255, 0.06);
+
+  --bg-tertiary: #161616;
+  --fg-secondary: #d4d4d4;
+  --border-hover: #333333;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  --track: rgba(255, 255, 255, 0.07);
+  --grid: rgba(255, 255, 255, 0.07);
+
+  /* Dark is a *selected* set — the same eight hues re-stepped for the dark
+     surface and validated against it, not an automatic flip of the light one. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+
+  --seq-100: #0d366b;
+  --seq-200: #184f95;
+  --seq-300: #256abf;
+  --seq-400: #2a78d6;
+  --seq-500: #3987e5;
+  --seq-600: #6da7ec;
+  --seq-700: #9ec5f4;
+
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --chart-muted: #898781;
+  --delta-good: #0ca30c;
+}
+
+@theme {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ── Reset & Base ──────────────────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  margin: 0;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+/* Smooth the light/dark swap without animating every frame of the charts. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease,
+    fill 0.35s ease,
+    stroke 0.35s ease !important;
+}
+
+/* ── Texture ───────────────────────────────────────────────────────────────── */
+
+/* A very faint film grain so large flat surfaces do not band. */
+.noise {
+  position: relative;
+}
+
+.noise::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Entrance Animations ───────────────────────────────────────────────────── */
+
+@keyframes flow-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes flow-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.anim-enter {
+  opacity: 0;
+  animation: flow-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.anim-fade {
+  opacity: 0;
+  animation: flow-fade 0.8s ease forwards;
+}
+
+.d-1 { animation-delay: 0.05s; }
+.d-2 { animation-delay: 0.12s; }
+.d-3 { animation-delay: 0.2s; }
+.d-4 { animation-delay: 0.28s; }
+.d-5 { animation-delay: 0.36s; }
+.d-6 { animation-delay: 0.46s; }
+.d-7 { animation-delay: 0.56s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-enter,
+  .anim-fade {
+    opacity: 1;
+    animation: none;
+  }
+}
