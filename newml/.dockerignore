@@ -1,0 +1,10 @@
+**/.git
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.venv
+flwcnx/data
+flwcnx/results
+flwcnx/docs
+flwcnx/.env

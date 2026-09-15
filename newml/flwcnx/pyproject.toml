@@ -45,6 +45,8 @@ dependencies = [
 # path, even though the replay path only needs sgp4.
 orbital = ["sgp4>=2.23", "skyfield>=1.48"]
 dev = ["pytest>=8.0", "ruff>=0.6"]
+# The FastAPI server in flwcnx/api that streams DemoEngine decisions to the TUI.
+api = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "websockets>=12.0"]
 
 [project.urls]
 Repository = "https://github.com/Mayan10/flwcnx"
