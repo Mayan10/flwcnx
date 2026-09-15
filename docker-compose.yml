@@ -39,10 +39,17 @@ services:
   webui:
     build:
       context: ./webui
+      args:
+        # Browser-side URLs, so these are host addresses rather than compose
+        # service names. The /api suffix matters: the backend mounts its
+        # routers there and the console appends paths like /auth/login.
+        NEXT_PUBLIC_API_URL: http://localhost:3001/api
+        NEXT_PUBLIC_ML_WS_URL: ws://localhost:8010/ws/ml/stream
     ports:
       - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    depends_on:
+      - backend
+      - ml-api
 
 volumes:
   pgdata:
