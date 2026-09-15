@@ -8,3 +8,9 @@ __pycache__/
 !.env.example
 .DS_Store
 *.tsbuildinfo
+
+# Claude Code session scratch. CLAUDE.md section 0 requires that no AI tooling
+# appears in the repository or its metadata; a resume checkpoint carrying a
+# session id was committed once and is ignored here so it cannot recur.
+.claude/RESUME.md
+.claude/checkpoint-*
