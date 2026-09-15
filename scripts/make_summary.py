@@ -150,6 +150,24 @@ def adaptation_note(payload: dict, epsilon: float, granularity: str) -> str:
     return "\n".join(lines)
 
 
+def _geometry_label(config: dict) -> str:
+    """Where the satellite geometry in a run actually came from.
+
+    This used to print "reconstructed" for every run that had geometry at all,
+    which mislabelled the StarNet traces: there elevation, distance and
+    candidate count are measured by the terminal and carried in the trace. The
+    objective O2 negative result rests on that geometry being measured, so a
+    summary that calls it reconstructed contradicts the finding it supports.
+    Only the WetLinks path propagates orbital elements, and it is the only one
+    that sets `geometry_source = "reconstructed"` on its rows.
+    """
+    if not config.get("geometry"):
+        return "none"
+    if config.get("dataset") == "starnet":
+        return "measured by the terminal, carried in the trace"
+    return "reconstructed from propagated elements"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -182,7 +200,7 @@ memory.
 | | |
 |---|---|
 | dataset | {config.get('dataset')} |
-| geometry | {'reconstructed from propagated elements' if config.get('geometry') else 'none'} |
+| geometry | {_geometry_label(config)} |
 | look-back / horizon | {features.get('lookback')} / {features.get('horizon')} s |
 | split | {split.get('scheme')}, train {split.get('train')} / calib {split.get('calibration')} / test {split.get('test')} |
 | leak check | {'clean' if payload.get('leak_check', {}).get('clean') else 'FAILED'} |

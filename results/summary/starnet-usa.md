@@ -9,7 +9,7 @@ memory.
 | | |
 |---|---|
 | dataset | starnet |
-| geometry | reconstructed from propagated elements |
+| geometry | measured by the terminal, carried in the trace |
 | look-back / horizon | 30 / 5 s |
 | split | temporal, train 111510 / calib 37166 / test 37173 |
 | leak check | clean |
