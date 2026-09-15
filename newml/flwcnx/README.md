@@ -14,6 +14,11 @@ Mayan Sharma, Kriti Saini, Devansh Behl
 
 ---
 
+> This is the research package. It is self-contained and every command below
+> runs from this directory. The service, web console and terminal console built
+> around it live at the repository root, described in
+> [`../../README.md`](../../README.md).
+
 The system forecasts downlink throughput one horizon ahead, converts that point
 forecast into a *safe lower bound* whose overestimation rate is held at a stated
 risk budget, and drives admission control and congestion alerts from that bound.
@@ -51,9 +56,10 @@ See [Contribution boundary](#contribution-boundary).
 
 ```bash
 git clone https://github.com/Mayan10/flwcnx.git
-cd flwcnx
+cd flwcnx/newml/flwcnx
 python -m pip install -e ".[dev]"
 python -m pip install -e ".[orbital]"   # SGP4, for the geometry reconstruction
+python -m pip install -e ".[api]"       # FastAPI, for the decision stream server
 
 pytest -q                               # 248 tests, no dataset and no GPU needed
 ```
@@ -66,6 +72,7 @@ reproduction gates are one command each:
 python scripts/reproduce_starnet.py --location all      # gate 1: forecast accuracy
 python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2: the risk table
 python scripts/run_demo.py --location canada            # end-to-end replay demo
+python -m flwcnx.api.server --mode synthetic --port 8010  # stream decisions live
 ```
 
 ## Documentation
