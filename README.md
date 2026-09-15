@@ -26,23 +26,63 @@ into a single system rather than three disconnected models:
    separate classifier).
 3. Optimize bandwidth allocation automatically (the decision layer).
 
-## Read this first
-
-| | |
-|---|---|
-| **Paper** | [`docs/paper/paper.md`](docs/paper/paper.md) - the reproduction and evaluation study, with the five findings in section 1.1 |
-| **Report** | [`docs/paper/report.md`](docs/paper/report.md) - the whole system, the four objectives, and how the data was obtained |
-| **Results** | [`results/summary/`](results/summary/) - every committed table, each traceable to a run with its config snapshot |
-| **Limitations** | [`docs/limitations.md`](docs/limitations.md) - written while building, not retrofitted |
-| **Novelty audit** | [`docs/novelty-review.md`](docs/novelty-review.md) - independent literature check that withdrew our methods claim |
-
 **What is new here is empirical, not algorithmic.** The mechanisms evaluated in
 this project are all published and are cited as such. The findings are ours.
 See [Contribution boundary](#contribution-boundary).
 
+## Contents
+
+- [Quickstart](#quickstart)
+- [Documentation](#documentation)
+- [What was learned](#what-was-learned)
+- [Where this work fails](#where-this-work-fails)
+- [The reproduction gates, both passed](#the-reproduction-gates-both-passed)
+- [Architecture](#architecture)
+- [Repository map](#repository-map)
+- [Contribution boundary](#contribution-boundary)
+- [Data](#data)
+- [Running it on your machine](#running-it-on-your-machine)
+- [Reproducing every number](#reproducing-every-number)
+- [Project status](#project-status)
+- [Citing](#citing)
+- [Licence](#licence)
+
+## Quickstart
+
+```bash
+git clone https://github.com/Mayan10/flwcnx.git
+cd flwcnx
+python -m pip install -e ".[dev]"
+python -m pip install -e ".[orbital]"   # SGP4, for the geometry reconstruction
+
+pytest -q                               # 248 tests, no dataset and no GPU needed
+```
+
+The test suite runs entirely on synthetic fixtures, so a fresh clone is
+verifiable before any data is downloaded. With the traces in place, the two
+reproduction gates are one command each:
+
+```bash
+python scripts/reproduce_starnet.py --location all      # gate 1: forecast accuracy
+python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2: the risk table
+python scripts/run_demo.py --location canada            # end-to-end replay demo
+```
+
+## Documentation
+
+| | |
+|---|---|
+| **Paper** | [`docs/paper/paper.md`](docs/paper/paper.md) - the reproduction and evaluation study, with the findings in section 1.1 |
+| **Report** | [`docs/paper/report.md`](docs/paper/report.md) - the whole system, the four objectives, and how the data was obtained |
+| **Results** | [`results/summary/`](results/summary/) - every committed table, each traceable to a run with its config snapshot |
+| **Limitations** | [`docs/limitations.md`](docs/limitations.md) - written while building, not retrofitted |
+| **Progress log** | [`docs/progress.md`](docs/progress.md) - one entry per phase, including the two withdrawn claims |
+| **Novelty audit** | [`docs/novelty-review.md`](docs/novelty-review.md) - independent literature check that withdrew our methods claim |
+| **Data access** | [`docs/data-access.md`](docs/data-access.md) - every route checked to obtain the traces, and the workaround |
+
 ## What was learned
 
-Three figures. Every number is read from a saved `result.json`, and
+Four figures. Every number is read from a saved `result.json`, and
 `scripts/make_readme_figures.py` regenerates all of them at 300 DPI.
 
 ### A published method silently ignores tight risk budgets
@@ -171,10 +211,17 @@ rather than hidden.
 
 ## The reproduction gates, both passed
 
+Nothing downstream means anything until these pass. Both were run on
+2026-09-01 against the released traces.
+
 | gate | result |
 |---|---|
-| StarNet (Phase 1) | average RMSE 39.73 vs 39.30 published (+1.1%), MAE 29.97 vs 29.28 (+2.4%) |
-| BG-CFQS (Phase 2) | under an exchangeable split: OverRate 0.340 vs 0.349, P30 0.671 (pub 0.65 to 0.71), P10 0.848 (pub 0.83 to 0.86), risk pass 3/3 |
+| [StarNet](results/summary/phase1-starnet-gate.md) (Phase 1) | average RMSE 39.73 vs 39.30 published (+1.1%), MAE 29.97 vs 29.28 (+2.4%) |
+| [BG-CFQS](results/summary/phase2-bgcfqs-gate.md) (Phase 2) | under an exchangeable split: OverRate 0.340 vs 0.349, P30 0.671 (pub 0.65 to 0.71), P10 0.848 (pub 0.83 to 0.86), risk pass 3/3 |
+
+Per-location StarNet gaps are 4.2% to 6.9% and scatter in **both** directions,
+which is what an independent reimplementation looks like. A reimplementation
+tuned toward the target would sit just under it everywhere.
 
 Phase 2 passed only after `scripts/split_sensitivity.py` identified the split as
 the confound. BG-CFQS's guarantee holds under the exchangeability it is derived
@@ -191,7 +238,7 @@ Six layers. Each layer only talks to the one below it.
 ingest/     raw sources to a normalized frame     (no ML, no features)
 state/      frame to feature vectors + regime id  (no model)
 forecast/   feature vectors to point prediction   (StarNet backbone)
-calibrate/  point prediction to safe lower bound  (the novel layer)
+calibrate/  point prediction to safe lower bound  (the risk layer)
 decide/     safe bound to allocation + alerts     (no ML)
 eval/       harness, splits, metrics, figures
 ```
@@ -199,6 +246,31 @@ eval/       harness, splits, metrics, figures
 Two ingestion modes sit behind one interface. `ReplaySource` and the WetLinks
 sources are the real path. `LiveSource` wires a terminal, a TLE feed and a
 weather feed, and is a stub until a dish is available.
+
+The design decision that makes the whole thing testable is that congestion is
+**derived** rather than modelled: it is the calibrated bound sitting below the
+committed allocation for a sustained window. One model, one calibration, and
+every downstream signal is a decision rule on the same bound.
+
+## Repository map
+
+```
+flwcnx/
+  config.py            dataclass config, no globals
+  device.py            CUDA then MPS then CPU, with a memory budget guard
+  ingest/              replay, WetLinks, TLE propagation, weather, live stub
+  state/               phase recovery, satellite resolution, regimes, features
+  forecast/            StarNet backbone, DLinear/PatchTST/TimesNet/XGBoost
+  calibrate/           split conformal, per-regime, online, BG-CFQS baseline
+  decide/              admission control, congestion, SLA and cost
+  eval/                splits, metrics, experiment runner, figures
+  demo/                slot-by-slot replay engine
+docs/                  paper, report, limitations, progress, references.bib
+scripts/               one entry point per experiment, plus figure and table generators
+tests/                 248 tests, synthetic fixtures only
+results/summary/       the committed tables (the rest of results/ is gitignored)
+data/                  gitignored
+```
 
 ## Contribution boundary
 
@@ -239,8 +311,8 @@ in full. What the work contributes is evidence:
 5. **Group conditioning helps only when the groups differ.** The attempt to
    predict *which* case a trace is in, from the calibration split, failed:
    `results/summary/gate-negative-result.md`. Reported as a negative.
-6. **The satellite covariates do not carry the signal** when measured rather
-   than reconstructed. Objective O2's premise is not supported.
+6. **The satellite covariates do not carry the signal** even when measured
+   rather than reconstructed. Objective O2's premise is not supported.
 7. **Casparsen's 15 s scheduling offset recovered independently** on three
    continents from a different signal at 1/500th of their sampling rate.
 
@@ -251,6 +323,44 @@ throughput subset and 0.83 to 0.86 on the lowest 10%. Risk is controlled on
 average and lost precisely in the low capacity regime where over allocation
 actually drops sessions. **That failure reproduces here on independent data**:
 the uncalibrated forecaster runs at 0.505 globally and 0.841 at P10.
+
+## Data
+
+Nothing in `data/` is versioned. Only the download and preprocessing scripts
+are.
+
+**Primary: the StarNet traces.** Three locations at 1 Hz with serving-satellite
+identity, elevation, distance, visible-satellite count and co-located weather:
+Chicago (1,123,832 samples), Osnabruck (613,295) and Victoria (145,053). These
+were unavailable for months, because all three OneDrive links in the authors'
+repository had expired and neither the first author nor the PI replied.
+[`docs/data-access.md`](docs/data-access.md) records every route that was
+checked.
+
+When they did arrive, two of the three folders were mislabelled: the one marked
+`usa` contained Victoria and vice versa. Every file is identified from its
+contents rather than its filename, and the loader verifies row counts and
+satellite counts against the published dataset table at zero relative error.
+
+**Second dataset: the full WetLinks release**
+(<https://github.com/sys-uos/WetLinks>), 1,019,109 per-second *measured
+capacity* samples. This is the workaround that kept the project running while
+the traces were unavailable, and it remains the second measurement campaign the
+cross-dataset claims rest on. It substitutes for the traces on everything except
+serving-satellite identity, with candidate count recovered by propagating 181
+consecutive days of Space-Track orbital elements against known site coordinates.
+
+**Geometry provenance differs by source, and every claim says which.** On the
+StarNet traces elevation, distance and candidate count are *measured* by the
+terminal. On the WetLinks path they are *reconstructed* from propagated orbital
+elements, and every row carries `geometry_source = "reconstructed"`. The
+objective O2 negative result is stated on the measured geometry.
+
+```bash
+python scripts/download_data.py --dataset starnet --dest data/starnet
+python scripts/download_data.py --inspect data/supplied
+python scripts/fetch_elements.py            # Space-Track, needs .env credentials
+```
 
 ## Running it on your machine
 
@@ -291,48 +401,6 @@ most effective knob. A stride above the horizon also makes scored decisions
 disjoint, which is the honest denominator for a risk rate. The full test suite
 needs no dataset and no GPU.
 
-## Install
-
-```bash
-python -m pip install -e ".[dev]"
-python -m pip install -e ".[orbital]"   # SGP4, for the geometry reconstruction
-```
-
-## Data
-
-Nothing in `data/` is versioned.
-
-**The StarNet traces are unavailable.** All three OneDrive links in their repo
-have expired and the authors did not respond. `docs/data-access.md` records
-every route that was checked and the workaround that was taken instead: the
-full WetLinks release (https://github.com/sys-uos/WetLinks) supplies 1.02M
-per-second *measured capacity* samples, which substitutes for the traces on
-everything except serving satellite identity.
-
-```bash
-python scripts/download_data.py --dataset starnet --dest data/starnet
-python scripts/download_data.py --inspect data/supplied
-python scripts/fetch_elements.py            # Space-Track, needs .env credentials
-```
-
-## Status and what is not done
-
-- **The reproduction gates were never run.** StarNet's RMSE/MAE table and
-  BG-CFQS's average table both need the traces. Phases 1 and 2 remain open, and
-  **no number in this repo is comparable to a published one**. The 15 sample
-  iperf run also caps look-back plus horizon at 15, so StarNet's 30/5 and
-  BG-CFQS's 75/15 cannot be run here regardless.
-- Cross location means two European sites 150 km apart measured by the same
-  instrument, not three continents.
-- Satellite geometry is *reconstructed* from propagated orbital elements, never
-  measured. Every row carries `geometry_source = "reconstructed"`.
-- The online layer's budget control is empirical, not a finite sample
-  guarantee, and it requires outcome feedback after each decision.
-- `LiveSource.connect` still raises. No live terminal.
-
-`docs/limitations.md` is the long version and is written to be read before the
-results, not after.
-
 ## Reproducing every number
 
 Every table in the paper, the report and `results/summary/` comes from one of
@@ -348,19 +416,62 @@ python scripts/split_sensitivity.py                     # the exchangeability fi
 python scripts/gamma_sensitivity.py                     # learning-rate robustness
 python -m flwcnx.eval.runner --location usa --stride 6  # the full calibration grid
 python scripts/run_cross_site.py --held-out Enschede    # cross-site holdout
-python scripts/run_demo.py --location canada            # the live replay demo
+python scripts/run_requirements.py                      # latency, availability, cost
+python scripts/compare_backbones.py <run-dirs> --out <file>
+python scripts/run_demo.py --location canada            # the replay demo
 
 # the WetLinks path, which is how the project ran before the traces arrived
 python scripts/run_wetlinks.py --release seconds --site Osnabruck --geometry \
     --epochs 30 --stride 1 --output results/final
 
-python scripts/make_readme_figures.py                    # the six README figures, 300 DPI
+python scripts/make_readme_figures.py                   # the seven README figures, 300 DPI
 python scripts/make_figures.py <run-dir>                # per-run figures from a saved run
 python scripts/make_summary.py <run-dir> --out <file>   # committed markdown tables
-python scripts/compare_backbones.py <run-dirs> --out <file>
 ```
 
 Seeded throughout (default 1337) and the seed is recorded in every result file.
+
+## Project status
+
+All ten build phases are complete, both reproduction gates pass, and all six of
+the brief's industry needs are measured. What follows is what that does **not**
+cover, stated here rather than left for a reader to discover.
+
+**Known gaps:**
+
+- `LiveSource.connect` still raises. There is no live terminal, and every
+  result in this repository is replay over recorded traces.
+- The Horizon hourly cross-country pull was never run, so objective O1's
+  cross-location analysis rests on the StarNet locations and a two-site
+  WetLinks holdout.
+- On the WetLinks side, cross location means two European sites 150 km apart
+  measured by the same instrument, not three continents.
+- StarNet's own ablations (published 38.00 without the periodical embedding,
+  37.01 without attention) have not been rerun at their configuration.
+- The WetLinks 15 sample iperf run caps look-back plus horizon at 15, so
+  StarNet's 30/5 and BG-CFQS's 75/15 cannot be run on that dataset.
+
+**Known weaknesses of what does work:**
+
+- The online layer's budget control is empirical, not a finite sample
+  guarantee, and it requires outcome feedback after each decision.
+- `gamma` is a single hand-set constant that should scale with regime count.
+  POGO removes the parameter entirely and is the principled fix.
+- Congestion detection is the weakest of the six requirements, at mean F1 0.459.
+- Every reported number was computed on a single machine. CI across three
+  Python versions was added afterwards and immediately found a bug the local
+  suite could not see, so no result here has independent hardware confirmation.
+- The shrinkage and empirical-Bayes literature was not searched, and it is where
+  the conditioning negative most likely has prior work.
+
+**Two claims were withdrawn during the project**, both caught internally: the
+methods claim, by commissioning an adversarial literature review, and the
+offset-spread predictor, by noticing that the gated and ungated calibrators
+produced byte-identical output. Both are documented in
+[`docs/progress.md`](docs/progress.md) rather than quietly removed.
+
+[`docs/limitations.md`](docs/limitations.md) is the long version and is written
+to be read before the results, not after.
 
 ## Citing
 
