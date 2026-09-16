@@ -103,10 +103,14 @@ python -m flwcnx.api.server --mode synthetic --port 8010
 
 ```bash
 cd tui
-cargo run
+cargo run --release
 ```
 
 `h` home, `k` login, `m` the live ML dashboard, `/` command bar, `q` quit.
+
+**Presenting this?** [`DEMO.md`](DEMO.md) is the runbook: what to start, in
+what order, what to point at, and what to say about the numbers before someone
+asks.
 
 ### The web console and backend in development
 
