@@ -56,7 +56,14 @@ class PipelineSpec:
     granularity: str = "level"
     stride: int = 2
     epochs: int = 5
-    commitment_mbps: float = 150.0
+    # The rate the operator has promised, which congestion is measured against.
+    # 150 sits below everything the synthetic link ever delivers (its floor is
+    # about 163 Mbps), so the congestion detector could never fire and the
+    # dashboard panel sat at zero for the whole demo. 200 is inside the
+    # operating range: the bound falls below it on roughly a fifth of slots,
+    # which the sustained-window rule turns into occasional episodes rather
+    # than a constant alarm. Override with --commitment.
+    commitment_mbps: float = 200.0
     synthetic_seconds: int = 6000
     seed: int = 1337
 
