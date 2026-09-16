@@ -74,6 +74,10 @@ pub struct App {
     pub ml_total_risk_events: u64,
     pub ml_total_dropped: u64,
     pub ml_total_congested_slots: u64,
+    /// The risk budget the server is running, from the init handshake. The
+    /// dashboard judges the realised rate against this rather than against a
+    /// hardcoded 0.35, which was wrong for any run started with --epsilon.
+    pub ml_epsilon: f64,
     /// Channel for receiving ML data from the background WebSocket task.
     pub ml_rx: tokio::sync::mpsc::Receiver<MlMessage>,
 }
@@ -120,6 +124,7 @@ impl App {
             ml_connection_state: MlConnectionState::Connecting,
             ml_total_decisions: 0,
             ml_total_risk_events: 0,
+            ml_epsilon: 0.35,
             ml_total_dropped: 0,
             ml_total_congested_slots: 0,
             ml_rx,
@@ -179,6 +184,7 @@ impl App {
         while let Ok(msg) = self.ml_rx.try_recv() {
             match msg {
                 MlMessage::Connected(init) => {
+                    self.ml_epsilon = init.epsilon;
                     self.ml_connection_state = MlConnectionState::Connected {
                         location: init.location,
                         mode: init.mode,

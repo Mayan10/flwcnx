@@ -70,6 +70,18 @@ fn render_kpis(frame: &mut Frame, app: &App, area: Rect) {
             (0.0, 0.0, 0, 0, 0, false)
         };
 
+    // The record's own realised_risk_rate is cumulative from the first decision
+    // of the stream, so on a fresh connection it reads 0.000 for the first
+    // half-minute and then swings well outside the budget on a sample this
+    // small. An operator watches the recent rate, so that is what the tile
+    // shows, with the cumulative figure kept in the note.
+    let rolling = over_promise_rate(&app.ml_bound, &app.ml_actual);
+    // The same window scored against the raw point forecast, which is the
+    // allocation an uncalibrated system would have committed. Both rates are
+    // measured on identical decisions, so the comparison holds even when the
+    // window is short.
+    let uncalibrated = over_promise_rate(&app.ml_predicted, &app.ml_actual);
+
     let conn_label = match &app.ml_connection_state {
         MlConnectionState::Connected { location, mode } => {
             format!("● {} ({})", location.to_uppercase(), mode)
@@ -93,9 +105,31 @@ fn render_kpis(frame: &mut Frame, app: &App, area: Rect) {
         },
         widgets::Kpi {
             label: "RISK RATE",
-            value: format!("{:.3}", risk_rate),
-            note: format!("{} violations", app.ml_total_risk_events),
-            color: if risk_rate > 0.35 { theme::RED } else { theme::GREEN },
+            value: match rolling {
+                Some(r) => format!("{r:.3}"),
+                None => "—".into(),
+            },
+            note: format!("budget {:.2}  cum {:.3}", app.ml_epsilon, risk_rate),
+            // Judged against the budget the server announced, with a tolerance
+            // band. The layer's claim is that it tracks the budget to within a
+            // point or two, so a hard `> budget` test paints a run that is
+            // doing exactly what it promises red at 0.351. Amber marks the
+            // band, red marks a rate that has genuinely left it.
+            color: match rolling {
+                Some(r) => risk_band_color(r, app.ml_epsilon),
+                None => theme::FG_SECONDARY,
+            },
+        },
+        widgets::Kpi {
+            label: "UNCALIBRATED",
+            value: match uncalibrated {
+                Some(u) => format!("{u:.3}"),
+                None => "—".into(),
+            },
+            note: "point forecast".into(),
+            // Always the worse number when the layer is working, so it is not
+            // colour-coded as a status: it is the baseline being beaten.
+            color: theme::AMBER,
         },
         widgets::Kpi {
             label: "SAFE BOUND",
@@ -274,6 +308,48 @@ fn render_throughput_chart(frame: &mut Frame, app: &App, area: Rect) {
         Paragraph::new(Line::from(Span::styled(strip, theme::fg(COLOR_RISK)))).style(theme::bg()),
         strip_area,
     );
+}
+
+/// Fraction of buffered decisions whose promise exceeded what arrived.
+///
+/// `promise` is the rate the system committed, either the calibrated safe
+/// bound or the raw point forecast, and `actual` is what the link delivered.
+/// Returns `None` until there is enough of a window for the number to mean
+/// anything, so the tile shows a dash rather than a confident 0.000.
+fn over_promise_rate(
+    promise: &std::collections::VecDeque<f64>,
+    actual: &std::collections::VecDeque<f64>,
+) -> Option<f64> {
+    const MIN_WINDOW: usize = 30;
+    let n = promise.len().min(actual.len());
+    if n < MIN_WINDOW {
+        return None;
+    }
+    let over = promise
+        .iter()
+        .zip(actual.iter())
+        .filter(|(p, a)| p > a)
+        .count();
+    Some(over as f64 / n as f64)
+}
+
+/// Colour for the realised risk rate against its budget.
+///
+/// Within the budget, or over it by less than the tolerance, is the layer
+/// working: green. Up to twice the tolerance is worth noticing but not a
+/// failure: amber. Beyond that the bound is over-promising more often than the
+/// operator asked for: red. Under-running the budget is not an error either,
+/// though it does mean capacity is being withheld, which the utilisation
+/// figure beside it shows.
+fn risk_band_color(rate: f64, budget: f64) -> ratatui::style::Color {
+    const TOLERANCE: f64 = 0.02;
+    if rate <= budget + TOLERANCE {
+        theme::GREEN
+    } else if rate <= budget + 2.0 * TOLERANCE {
+        theme::AMBER
+    } else {
+        theme::RED
+    }
 }
 
 const COLOR_ACTUAL: ratatui::style::Color = theme::FG_SECONDARY;
