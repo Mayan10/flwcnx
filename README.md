@@ -5,7 +5,7 @@ research package to a running console.**
 
 [![CI](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml/badge.svg)](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-248%20passing-brightgreen.svg)](newml/flwcnx/tests/)
+[![Tests](https://img.shields.io/badge/tests-318%20passing-brightgreen.svg)](newml/flwcnx/tests/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](newml/flwcnx/LICENSE)
 [![Reproduction gates](https://img.shields.io/badge/reproduction%20gates-2%2F2%20passed-brightgreen.svg)](newml/flwcnx/docs/paper/report.md#4-reproduction-gates)
 
@@ -20,10 +20,20 @@ drops sessions.
 
 FlowConX forecasts throughput one horizon ahead, converts that forecast into a
 **safe lower bound** whose overestimation rate is held at a risk budget the
-operator sets, and drives admission control and congestion alerts from that
-bound. The research that establishes what the bound can and cannot deliver is
-in [`newml/flwcnx`](newml/flwcnx); the rest of this repository is the system
-built around it.
+operator sets, and drives admission control, congestion alerts and per-flow
+rate allocation from that bound.
+
+The last of those is what stops congestion control from doing harm. When
+capacity is short a rate-based shaper throttles whatever is consuming most, and
+a radiology study pushed against a reporting deadline is indistinguishable from
+an operating system update by rate alone. FlowConX scores each flow's
+criticality online, from evidence a host can observe, and reserves a floor for
+the flows that must not be halted. See
+[Which flow gets throttled](newml/flwcnx/README.md#which-flow-gets-throttled).
+
+The research that establishes what the bound can and cannot deliver is in
+[`newml/flwcnx`](newml/flwcnx); the rest of this repository is the system built
+around it.
 
 ## Repository layout
 
@@ -41,7 +51,7 @@ built around it.
 ```
                  newml/flwcnx  (the research package)
                  StarNet forecast -> regime -> safe bound
-                 -> admission -> congestion
+                 -> admission -> congestion -> per-flow protection
                               |
                        flwcnx.api.server
                               |
@@ -126,18 +136,21 @@ inlines at build time.
 
 ## The research, in one paragraph
 
-Three of the six problems in the project brief are addressed, chosen because
-they chain into one system rather than three disconnected models: predict
-throughput degradation, detect congestion before users are affected, and
-optimize bandwidth allocation automatically. Both reproduction gates pass, and
-the findings are empirical rather than algorithmic: every mechanism evaluated
-is published and cited as such. The headline results are that the state of the
-art cannot serve a risk budget below 0.15, that its guarantee is conditional on
-an exchangeable split a deployed terminal does not have, and that the satellite
-covariates the project was designed around do not carry the signal.
+Four of the six problems in the project brief are addressed, chosen because
+they chain into one system rather than four disconnected models: predict
+throughput degradation, detect congestion before users are affected, optimize
+bandwidth allocation automatically, and decide which flow is throttled when
+capacity is short. Both reproduction gates pass, and the findings are empirical
+rather than algorithmic: every mechanism evaluated is published and cited as
+such. The headline results are that the state of the art cannot serve a risk
+budget below 0.15, that its guarantee is conditional on an exchangeable split a
+deployed terminal does not have, that the satellite covariates the project was
+designed around do not carry the signal, and that criticality-aware shedding
+cuts abandoned critical transfers from one in four to one in three hundred
+against a workload that is a model rather than a measurement.
 
 **[Read the full README of the research package](newml/flwcnx/README.md)**, which
-gives equal room to three findings and three failures, or go directly to:
+gives equal room to what works and what does not, or go directly to:
 
 | | |
 |---|---|
@@ -149,7 +162,7 @@ gives equal room to three findings and three failures, or go directly to:
 ## Status
 
 The research package is complete: both reproduction gates pass, all six of the
-brief's industry needs are measured, and 248 tests run in CI on Python 3.11,
+brief's industry needs are measured, and 318 tests run in CI on Python 3.11,
 3.12 and 3.13.
 
 The platform around it is a working demonstration rather than a deployment.
@@ -165,6 +178,9 @@ Stated plainly:
   trains.
 - The web and terminal consoles read the stream; neither can change the running
   configuration.
+- The protection layer computes per-flow rates and **never enforces them**.
+  Nothing wires them to a queueing discipline, and neither console shows them.
+  It is reachable from Python and from `scripts/run_protection.py`.
 
 The research package's own limitations are the longer and more important list,
 and they are in
