@@ -397,10 +397,19 @@ def _deadline(obs: FlowObservation, cfg: ScorerConfig) -> float:
     """
     if not math.isfinite(obs.deadline_remaining_s) or obs.remaining_mbit <= 0.0:
         return 0.0
-    rate = max(obs.granted_last_mbps, obs.demand_mbps, 1e-6)
+    # The ETA is at the rate the flow is *getting*, not the rate it wants.
+    # Taking the larger of the two reports a comfortable deadline for a
+    # transfer that is being starved, which is the one moment the channel
+    # exists to notice. Demand is the fallback only before anything has been
+    # granted, on a flow's first slot.
+    rate = max(obs.granted_last_mbps if obs.granted_last_mbps > 0.0
+               else obs.demand_mbps, 1e-6)
     eta_s = obs.remaining_mbit / rate
     slack_s = obs.deadline_remaining_s - eta_s
-    # Negative slack means the flow misses its deadline at the current rate.
+    # Negative slack means the flow misses its deadline at the rate it is being
+    # given. Starving a deadline flow therefore raises its criticality, which
+    # is the feedback the allocator needs: the hysteresis band and the decay
+    # are what keep that loop from oscillating.
     return -math.tanh(slack_s / cfg.deadline_scale_s)
 
 

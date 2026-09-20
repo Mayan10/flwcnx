@@ -302,3 +302,16 @@ def test_criticality_stays_a_probability():
         for spec, obs in [(bulk_spec(), bulk_obs()), (call_spec(), call_obs())]:
             value = scorer.update(t, {spec.flow_id: (spec, obs)})[spec.flow_id]
             assert 0.0 < value < 1.0 and math.isfinite(value)
+
+
+def test_starving_a_deadline_flow_raises_its_criticality():
+    """The feedback the allocator needs. Computing the ETA at the rate the flow
+    *wants* reports a comfortable deadline for a transfer that is being starved,
+    which is the one moment the channel exists to notice."""
+    spec = bulk_spec(bytes_total_mbit=6_000.0, deadline_s=600.0)
+    served = bulk_obs(remaining_mbit=3_000.0, deadline_remaining_s=200.0,
+                      granted_last_mbps=30.0, demand_mbps=30.0)
+    starved = bulk_obs(remaining_mbit=3_000.0, deadline_remaining_s=200.0,
+                       granted_last_mbps=2.0, demand_mbps=30.0)
+    assert (channel_scores(spec, starved)["deadline"]
+            > channel_scores(spec, served)["deadline"])
