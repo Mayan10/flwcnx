@@ -91,14 +91,21 @@ def simple_table(rows: list[dict], key: str, label: str) -> str:
     baseline_key = "full" if key == "variant" else "none"
     grouped = frame.groupby(key)
     baseline = float(grouped["critical_violation_allocated"].mean().get(baseline_key, np.nan))
-    lines = [f"| {label} | critical violation | change | scorer AP |", "|---|---|---|---|"]
+    # Goodput and flap rate are here because two variants do not move the
+    # violation rate at all and are not therefore no-ops: hysteresis acts on
+    # flapping and the weight exponent acts on the residual sharing.
+    lines = [f"| {label} | critical violation | change | critical goodput "
+             f"| scorer AP | flap rate |",
+             "|---|---|---|---|---|---|"]
     for name, group in grouped:
         value = _mean(group, "critical_violation_allocated")
         delta = value - baseline
         marker = "" if name == baseline_key else f"{delta:+.3f}"
         lines.append(f"| {str(name).replace('_', ' ')} | {_fmt(value)} +/- "
                      f"{_fmt(_spread(group, 'critical_violation_allocated'))} | {marker} "
-                     f"| {_fmt(_mean(group, 'scorer_ap'))} |")
+                     f"| {_fmt(_mean(group, 'critical_goodput_ratio'))} "
+                     f"| {_fmt(_mean(group, 'scorer_ap'))} "
+                     f"| {_fmt(_mean(group, 'scorer_flap_rate'), 4)} |")
     return "\n".join(lines)
 
 

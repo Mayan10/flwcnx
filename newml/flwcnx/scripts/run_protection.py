@@ -191,40 +191,38 @@ def arm_capacity(bound: np.ndarray, point: np.ndarray, actual: np.ndarray,
 
 def arm_ablation(bound: np.ndarray, actual: np.ndarray, args: argparse.Namespace
                  ) -> list[dict]:
-    """One mechanism removed at a time, at the reference load."""
-    variants = {
-        "full": ({}, {}),
-        # Weighted fair queueing: the criticality still sets the weights, but a
-        # protected flow no longer starts filled. Measures the floors alone.
-        "no_floors": ({}, {"honour_floors": True}),
-        # One threshold instead of a band, so the protected set may flap.
-        "no_hysteresis": ({"release_threshold": None}, {}),
-        # Declarations ignored entirely: every flow starts at neutral and has to
-        # earn its score. Measures what the priors are worth.
-        "no_priors": ({"priors": None}, {}),
+    """One mechanism removed at a time, at the reference load.
+
+    Each variant is a complete pair of configurations rather than a diff, so
+    what any row actually ran is readable without tracing keyword defaults.
+    """
+    base_scorer, base_protection = ScorerConfig(), ProtectionConfig()
+    neutral_priors = dict.fromkeys(base_scorer.priors, 0.0)
+    silent_channels = dict.fromkeys(CHANNEL_WEIGHTS, 0.0)
+
+    variants: dict[str, tuple[ScorerConfig, ProtectionConfig]] = {
+        "full": (base_scorer, base_protection),
+        # Weighted fair queueing: criticality still sets the weights, but a
+        # protected flow no longer starts filled. Isolates the floors.
+        "no_floors": (base_scorer, ProtectionConfig(honour_floors=False)),
+        # One threshold instead of a band, so the protected set may flap. The
+        # column to read for this row is the flap rate, not the violation rate.
+        "no_hysteresis": (ScorerConfig(release_threshold=base_scorer.protect_threshold,
+                                       min_protected_slots=0), base_protection),
+        # Declarations ignored entirely: every flow starts neutral and has to
+        # earn its score. Measures what the declarations are worth.
+        "no_priors": (ScorerConfig(priors=neutral_priors), base_protection),
         # Evidence ignored entirely: the score is the declaration and nothing
         # else, which is class priority wearing this allocator.
-        "priors_only": ({"weights": None}, {}),
+        "priors_only": (ScorerConfig(weights=silent_channels), base_protection),
         # Sharpen the weight curve, which widens the gap between a confidently
-        # critical flow and an uncertain one.
-        "sharp_weights": ({}, {"weight_exponent": 2.0}),
+        # critical flow and an uncertain one. Changes the residual sharing
+        # rather than the floors, so read the goodput column for this row.
+        "sharp_weights": (base_scorer, ProtectionConfig(weight_exponent=2.0)),
     }
 
     rows = []
-    for name, (scorer_kw, protect_kw) in variants.items():
-        scorer = ScorerConfig()
-        if "release_threshold" in scorer_kw:
-            scorer = ScorerConfig(release_threshold=scorer.protect_threshold,
-                                  min_protected_slots=0)
-        if "priors" in scorer_kw:
-            scorer = ScorerConfig(priors=dict.fromkeys(ScorerConfig().priors, 0.0))
-        if "weights" in scorer_kw:
-            scorer = ScorerConfig(weights=dict.fromkeys(CHANNEL_WEIGHTS, 0.0))
-
-        protection = ProtectionConfig(
-            honour_floors=not protect_kw.get("honour_floors", False),
-            weight_exponent=protect_kw.get("weight_exponent", 1.0))
-
+    for name, (scorer, protection) in variants.items():
         violations = []
         for seed in _seeds(args):
             run = run_policy("protected", bound, actual,
