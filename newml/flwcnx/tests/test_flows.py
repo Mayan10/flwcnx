@@ -104,7 +104,8 @@ def test_every_channel_stays_inside_the_unit_band():
         (bulk_spec(resumable=False), bulk_obs(progress=1.0, user_events=10_000,
                                               foreground=True, idle_fraction=1.0)),
         (call_spec(recurrence=1.0), call_obs(demand_mbps=1e6, granted_last_mbps=1e-9,
-                                             throttled_last=True, remaining_mbit=1e9,
+                                             demand_peak_mbps=1e-9, throttled_last=True,
+                                             remaining_mbit=1e9,
                                              deadline_remaining_s=-1e6)),
     ]
     for spec, obs in extremes:
@@ -113,22 +114,26 @@ def test_every_channel_stays_inside_the_unit_band():
 
 
 def test_elasticity_separates_backing_off_from_holding_firm():
+    """Measured against the flow's own peak offered load, not against what it
+    was granted. Against the grant the channel inverts, because a transfer that
+    has fully backed off ends up offering exactly what it was given and so
+    scores as maximally persistent."""
     cfg = ScorerConfig()
-    elastic = channel_scores(bulk_spec(), bulk_obs(throttled_last=True,
-                                                   granted_last_mbps=5.0,
-                                                   demand_mbps=5.0), cfg)
-    inelastic = channel_scores(call_spec(), call_obs(throttled_last=True,
-                                                     granted_last_mbps=0.5,
-                                                     demand_mbps=2.5), cfg)
-    # An elastic flow's offered load collapses to what it was granted, so the
-    # ratio pins at 1 either way. The separation comes from demand *below* the
-    # grant, which is what a flow that has finished backing off looks like.
     backed_off = channel_scores(bulk_spec(), bulk_obs(throttled_last=True,
                                                       granted_last_mbps=5.0,
-                                                      demand_mbps=0.5), cfg)
-    assert backed_off["elasticity"] < 0.0
-    assert inelastic["elasticity"] == pytest.approx(1.0)
-    assert elastic["elasticity"] == pytest.approx(1.0)
+                                                      demand_mbps=5.0,
+                                                      demand_peak_mbps=30.0), cfg)
+    holding_firm = channel_scores(call_spec(), call_obs(throttled_last=True,
+                                                        granted_last_mbps=0.5,
+                                                        demand_mbps=2.5,
+                                                        demand_peak_mbps=2.5), cfg)
+    assert backed_off["elasticity"] < -0.5
+    assert holding_firm["elasticity"] == pytest.approx(1.0)
+
+
+def test_elasticity_is_silent_until_something_has_been_throttled():
+    never = channel_scores(bulk_spec(), bulk_obs(demand_peak_mbps=30.0))
+    assert never["elasticity"] == 0.0
 
 
 def test_deadline_pressure_flips_sign_as_slack_runs_out():
@@ -209,7 +214,8 @@ def test_recovery_time_does_not_grow_with_the_history_behind_it():
     for a minute, or the layer cannot serve a transfer that turns urgent."""
     urgent = bulk_obs(foreground=True, user_events=8, remaining_mbit=3_000.0,
                       deadline_remaining_s=10.0, throttled_last=True,
-                      granted_last_mbps=1.0, demand_mbps=30.0)
+                      granted_last_mbps=1.0, demand_mbps=30.0,
+                      demand_peak_mbps=30.0)
 
     def recover(history_slots: int) -> list[float]:
         scorer = CriticalityScorer()
@@ -232,7 +238,8 @@ def test_mixed_evidence_lands_near_undecided_rather_than_confidently_wrong():
     scorer = CriticalityScorer()
     urgent = bulk_obs(foreground=True, user_events=8, remaining_mbit=3_000.0,
                       deadline_remaining_s=10.0, throttled_last=True,
-                      granted_last_mbps=1.0, demand_mbps=30.0)
+                      granted_last_mbps=1.0, demand_mbps=30.0,
+                      demand_peak_mbps=30.0)
     for t in range(60):
         value = scorer.update(t, {"b": (bulk_spec("b", resumable=False), urgent)})["b"]
     assert 0.35 < value < 0.65

@@ -257,6 +257,7 @@ class ActiveFlow:
     delivered_last_mbps: float = 0.0
     throttled_last: bool = False
     demand_mbps: float = 0.0
+    demand_peak_mbps: float = 0.0
     slots_below_floor: int = 0
     slots_alive: int = 0
     delivered_mbit: float = 0.0
@@ -326,6 +327,7 @@ class FlowWorkload:
             deadline_remaining_s=deadline_s,
             foreground=bool(self.rng.random() < archetype.foreground_probability),
             demand_mbps=archetype.nominal_mbps,
+            demand_peak_mbps=archetype.nominal_mbps,
         )
 
     def _arrivals(self, slot: int) -> None:
@@ -400,6 +402,7 @@ class FlowWorkload:
                     idle_fraction=arch.idle_fraction,
                     foreground=flow.foreground, user_events=events,
                     demand_mbps=flow.demand_mbps,
+                    demand_peak_mbps=flow.demand_peak_mbps,
                     granted_last_mbps=flow.granted_last_mbps,
                     throttled_last=flow.throttled_last,
                     remaining_mbit=flow.remaining_mbit,
@@ -454,6 +457,7 @@ class FlowWorkload:
                                        0.4 * flow.demand_mbps + 0.6 * max(got, 0.05))
             else:
                 flow.demand_mbps = flow.archetype.nominal_mbps
+            flow.demand_peak_mbps = max(flow.demand_peak_mbps, flow.demand_mbps)
 
             # Foreground is sticky: a user does not switch window every slot.
             if self.rng_behaviour.random() < 0.05:

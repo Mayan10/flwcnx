@@ -219,6 +219,11 @@ class FlowObservation:
     #: what it got. The difference between this and the delivered rate is how
     #: the elasticity channel gets its experiment.
     demand_mbps: float = 0.0
+    #: The largest offered load this flow has ever shown. The reference the
+    #: elasticity channel measures against: a congestion-controlled transfer
+    #: that has backed off sits well below its own peak, and a real-time stream
+    #: keeps asking for the same rate it always did.
+    demand_peak_mbps: float = 0.0
     #: Rate the allocator granted last slot, and whether that was a throttle.
     granted_last_mbps: float = 0.0
     throttled_last: bool = False
@@ -257,6 +262,16 @@ class ScorerConfig:
     #: hysteresis band. Guards the case where the evidence itself is noisy
     #: enough to cross the whole band.
     min_protected_slots: int = 3
+    #: How much of an upward declaration to keep as standing evidence, once it
+    #: has served as the initial condition. A declaration that *lowers* a flow's
+    #: own priority is credible, because nothing on the host gains by claiming
+    #: to be background, and it is believed in full forever. A declaration that
+    #: raises it is self-serving and anything can make one, so it is believed at
+    #: flow start, where a patient monitor cannot afford to wait out an evidence
+    #: window, and discounted as standing evidence thereafter. At 1.0 a
+    #: misdeclared download keeps the protection its declaration bought for as
+    #: long as it runs, which is measurable and is the reason this is not 1.0.
+    upward_claim_weight: float = 0.5
     #: Slots without an observation before a flow's state is discarded, so the
     #: scorer's memory is bounded by the number of *active* flows.
     idle_eviction_slots: int = 60
@@ -274,6 +289,13 @@ class ScorerConfig:
             raise ValueError("release threshold must not exceed the protect threshold")
         if self.max_log_odds <= 0:
             raise ValueError("max_log_odds must be positive")
+        if not 0.0 <= self.upward_claim_weight <= 1.0:
+            raise ValueError("upward_claim_weight must lie in [0, 1]")
+
+    def standing_prior(self, declared: FlowClass) -> float:
+        """The declaration's weight as per-slot evidence, after flow start."""
+        prior = self.priors.get(declared, 0.0)
+        return prior if prior <= 0.0 else prior * self.upward_claim_weight
 
 
 @dataclass
@@ -345,20 +367,24 @@ def _elasticity(obs: FlowObservation, cfg: ScorerConfig) -> float:
     """Did offered load fall when we last throttled this flow.
 
     The closed-loop channel. Throttling is an intervention, and an intervention
-    is an experiment: an elastic transfer's offered load collapses to whatever
-    it was given, an inelastic one keeps asking. Reading this off the response
-    to our own action is far more reliable than inferring elasticity from the
-    traffic shape, which is why this channel outweighs `interactivity`.
+    is an experiment: a congestion-controlled transfer's offered load collapses,
+    a real-time stream keeps asking. Reading elasticity off the response to our
+    own action is more reliable than inferring it from the traffic shape, which
+    is why this channel outweighs `interactivity`.
+
+    The reference is the flow's **own peak** offered load, not what it was
+    granted. Measuring against the grant inverts the channel, because a fully
+    backed-off transfer ends up offering exactly what it was given and so looks
+    maximally persistent. That inversion was live long enough to put a
+    misdeclared download above the protection threshold, which is what the
+    per-archetype figure is for.
 
     Returns 0.0 when no throttle has been applied, because in that case there
     is no experiment and therefore no evidence.
     """
-    if not obs.throttled_last or obs.granted_last_mbps <= 0.0:
+    if not obs.throttled_last or obs.demand_peak_mbps <= 0.0:
         return 0.0
-    # Demand persisting at or above what it was granted means the flow did not
-    # back off. Ratios above 1 are clipped: a flow asking for twice what it got
-    # is no more inelastic than one asking for exactly what it got.
-    persistence = _clamp(obs.demand_mbps / obs.granted_last_mbps, 0.0, 1.0)
+    persistence = _clamp(obs.demand_mbps / obs.demand_peak_mbps, 0.0, 1.0)
     return 2.0 * persistence - 1.0
 
 
@@ -502,7 +528,7 @@ class CriticalityScorer:
                 raise ValueError(f"key {flow_id!r} does not match spec {spec.flow_id!r}")
             state = self.state_for(spec)
 
-            evidence = cfg.priors.get(spec.declared, 0.0)
+            evidence = cfg.standing_prior(spec.declared)
             scores = channel_scores(spec, obs, cfg)
             for name, score in scores.items():
                 evidence += cfg.weights.get(name, 0.0) * score
