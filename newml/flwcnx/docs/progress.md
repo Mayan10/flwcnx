@@ -405,3 +405,82 @@ documented as unvalidated in `docs/limitations.md`.
 
 **Repo.** Largest tracked file is 288 KB. The 200 MB under `results/` is
 gitignored and every directory in it backs a committed summary, so it stays.
+
+## Phase 9. The protection layer
+
+Status: done, 2026-09-20. `results/summary/protection-*.md`,
+`docs/figures/protection-*.png`.
+
+Everything before this phase treats the link as one pipe. The calibrated bound
+says how many megabits the next horizon can be trusted to carry and
+`decide/admission.py` turns that into a session count. That is the right
+abstraction for measuring a forecaster and the wrong one for shedding load,
+because it treats every megabit as interchangeable. When the bound falls and
+something has to give, which megabit is the entire question.
+
+The policy a rate-based shaper implements, and the one the brief's framing
+invites, is to throttle whatever is consuming most. It is wrong in exactly the
+case that matters. A radiology study pushed to a regional archive against a
+reporting deadline is a large, sustained, single-direction transfer, and so is
+an operating system update. Bandwidth consumed carries almost no information
+about whether halting a flow is acceptable.
+
+**The layer.** `decide/flows.py` scores each flow's criticality online, as a
+recursive log-odds update with a forgetting factor over seven weak channels:
+user attention, interactivity, measured elasticity, deadline slack,
+irreversibility, volume and recurrence. `decide/protect.py` divides the
+calibrated bound by criticality-weighted max-min fairness under protected
+floors, solved exactly by walking the breakpoints of the piecewise-linear
+water-filling equation rather than by bisection.
+
+**Nothing in it is a new mechanism** and the module docstrings say so:
+progressive filling is Bertsekas and Gallager, class priority is RFC 2474,
+deadline-driven flow scheduling is D3 and PDQ, log-odds pooling is textbook.
+What is specific is the coupling. The allocator divides a *bound* whose
+overestimation rate is held at a stated budget, which is what makes a reserved
+floor an assertion that can be checked instead of a statement about a number
+the link may not meet.
+
+**The evaluation's largest qualification is stated first.** The capacity is
+measured and the flows are a model. Neither StarNet nor WetLinks carries a flow
+table, process attribution or a user-attention signal, and no public LEO
+dataset does, so the per-slot bound and realised throughput come from a trained
+pipeline over the real traces and the flows contending for them are generated.
+`docs/limitations.md` section 4c is the long version and it includes the two
+points that cut against the layer: the ground-truth label is a stipulation, and
+the confusion built into the workload is our choice too.
+
+**Two defects were found by looking at a figure rather than at a number.**
+Plotting criticality per archetype put a misdeclared download at 0.81, well
+above the protection threshold. Both causes were real.
+
+The elasticity channel was inverted. It asked whether offered load persisted at
+what the flow was *granted*, and a congestion-controlled transfer that has
+fully backed off offers exactly what it was given, so the ratio pinned at 1 and
+the channel scored it maximally inelastic. A test had asserted that behaviour
+rather than questioned it. The reference is now the flow's own peak offered
+load.
+
+The declaration was counted twice, as the initial condition and again as a
+per-slot evidence term, so a claim of CLINICAL was worth +2.5 log-odds forever.
+It is now the initial condition in full, which is what protects a declared
+patient monitor on its first packet, and discounted as standing evidence
+afterwards. The discount is asymmetric: a declaration that lowers a flow's own
+priority runs against the claimant's interest and is believed in full, and one
+that raises it does not.
+
+**What the scorer still gets wrong**, recorded here rather than left in a
+results file: an entertainment video stream and a teleconsultation are alike on
+every channel this layer has. Both are inelastic, both sit in the foreground,
+both show the same packet profile, neither has a deadline. The only signal
+separating them is the declared class, which is the signal the layer was built
+not to depend on. It is the whole of the remaining precision cost and it is
+visible in `docs/figures/protection-scorer.png` as the one blue archetype above
+the threshold.
+
+**The channel ablation is a mixed result and is reported as one.** Removing the
+deadline channel and removing elasticity both cost clearly more than the spread
+across workload seeds. Attention and volume are neutral, and interactivity is
+slightly negative. The defaults were not retuned on the strength of that table,
+because fitting the weights on the evaluation workload and then evaluating on
+the same generator is the circularity the module docstring warns about.
