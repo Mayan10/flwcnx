@@ -5,7 +5,7 @@ research package to a running console.**
 
 [![CI](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml/badge.svg)](https://github.com/Mayan10/flwcnx/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-318%20passing-brightgreen.svg)](newml/flwcnx/tests/)
+[![Tests](https://img.shields.io/badge/tests-323%20passing-brightgreen.svg)](newml/flwcnx/tests/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](newml/flwcnx/LICENSE)
 [![Reproduction gates](https://img.shields.io/badge/reproduction%20gates-2%2F2%20passed-brightgreen.svg)](newml/flwcnx/docs/paper/report.md#4-reproduction-gates)
 
@@ -162,7 +162,7 @@ gives equal room to what works and what does not, or go directly to:
 ## Status
 
 The research package is complete: both reproduction gates pass, all six of the
-brief's industry needs are measured, and 318 tests run in CI on Python 3.11,
+brief's industry needs are measured, and 323 tests run in CI on Python 3.11,
 3.12 and 3.13.
 
 The platform around it is a working demonstration rather than a deployment.
