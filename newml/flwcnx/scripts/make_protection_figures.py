@@ -148,14 +148,15 @@ def fig_case_study(run: Path, out: Path) -> Path | None:
     if context is not None:
         frame = context[context["slot"].between(*window)]
         top.plot(frame["slot"], frame["realised_mbps"], linewidth=1.3,
-                 color=TEXT_SECONDARY, alpha=0.8, zorder=3, label="what the link carried")
+                 color=TEXT_SECONDARY, alpha=0.8, zorder=3, label="carried")
         top.plot(frame["slot"], frame["capacity_mbps"], linewidth=1.6, color=VIOLET,
-                 zorder=4, label="the calibrated bound the allocator divided")
-        # Right aligned above the axes: the panel title is left aligned there,
-        # and inside the axes the series fill the whole box.
+                 zorder=4, label="calibrated bound, which is what was divided")
+        # Right aligned above the axes. The panel title is left aligned in the
+        # same band, and inside the axes the two series fill the whole box, so
+        # the labels are kept short enough that the two cannot meet.
         top.legend(frameon=False, fontsize=8.5, labelcolor=TEXT_SECONDARY, ncol=2,
-                   loc="lower right", bbox_to_anchor=(1.0, 1.0))
-    _style(top, title="The link over this stretch", ylabel="Mbps")
+                   loc="lower right", bbox_to_anchor=(1.0, 1.01))
+    _style(top, title="The link", ylabel="Mbps")
 
     panels = [(axes[1], "Throttling the largest flow first, which is what a rate-based "
                         "shaper does", naive),
@@ -236,13 +237,14 @@ def fig_policy_sweep(run: Path, out: Path) -> Path | None:
     capacity = float(data.get("capacity_series", {}).get("realised_mean_mbps", 0.0)) or 1.0
     load["mean_over"] = load["load_multiplier"] * nominal / capacity
 
-    fig, ax = plt.subplots(figsize=(8.0, 5.0))
+    fig, ax = plt.subplots(figsize=(8.2, 5.2))
     oracle = load[load["policy"] == "oracle"].sort_values("load_multiplier")
     if not oracle.empty:
+        # A line, not a filled region: the area under the oracle is not a
+        # category, and a second grey field competes with the shaded band that
+        # marks where the link is not oversubscribed.
         ax.plot(oracle["mean_over"], oracle["mean"], linestyle="--", linewidth=1.6,
                 color=TEXT_SECONDARY, zorder=5, label=POLICY_LABEL["oracle"])
-        ax.fill_between(oracle["mean_over"], 0, oracle["mean"], color=TEXT_SECONDARY,
-                        alpha=0.07, linewidth=0, zorder=1)
 
     for policy in DEPLOYABLE:
         series = load[load["policy"] == policy].sort_values("load_multiplier")
@@ -258,8 +260,8 @@ def fig_policy_sweep(run: Path, out: Path) -> Path | None:
         if policy == "shed_largest":      # aqua, below 3:1, so it is labelled
             peak = series.loc[series["mean"].idxmax()]
             ax.annotate(f"{peak['mean']:.2f}", (peak["mean_over"], peak["mean"]),
-                        textcoords="offset points", xytext=(6, -12), fontsize=8.5,
-                        color=TEXT_SECONDARY)
+                        textcoords="offset points", xytext=(-8, -14), fontsize=8.5,
+                        ha="right", color=TEXT_SECONDARY)
 
     _style(ax, title="Under congestion, which flow is throttled is the whole question",
            subtitle="critical flows held below the rate at which they are useful, "
@@ -270,7 +272,10 @@ def fig_policy_sweep(run: Path, out: Path) -> Path | None:
     ax.set_xlim(left=float(load["mean_over"].min()) * 0.95)
     ax.text(min(1.0, ax.get_xlim()[1]), ax.get_ylim()[1] * 0.97, "  link not oversubscribed",
             fontsize=8.5, color=TEXT_SECONDARY, va="top", style="italic")
-    ax.legend(frameon=False, fontsize=9, labelcolor=TEXT_SECONDARY, loc="lower right")
+    # Below the axes. Five entries do not fit in any corner once the sweep has
+    # its full set of load levels, and every corner has a series in it.
+    ax.legend(frameon=False, fontsize=9, labelcolor=TEXT_SECONDARY, ncol=3,
+              loc="upper center", bbox_to_anchor=(0.5, -0.16))
     return _save(fig, out / "protection-policy-sweep.png")
 
 
