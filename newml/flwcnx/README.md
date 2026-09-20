@@ -21,7 +21,9 @@ Mayan Sharma, Kriti Saini, Devansh Behl
 
 The system forecasts downlink throughput one horizon ahead, converts that point
 forecast into a *safe lower bound* whose overestimation rate is held at a stated
-risk budget, and drives admission control and congestion alerts from that bound.
+risk budget, and drives admission control, congestion alerts and per-flow rate
+allocation from that bound. The last of those is what keeps shedding load from
+halting the work that must not be halted.
 
 Four of the six problems in the brief are addressed, chosen because they chain
 into a single system rather than four disconnected models:
@@ -79,6 +81,7 @@ reproduction gates are one command each:
 python scripts/reproduce_starnet.py --location all      # gate 1: forecast accuracy
 python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2: the risk table
 python scripts/run_demo.py --location canada            # end-to-end replay demo
+python scripts/run_protection.py --location canada      # which flow gets throttled
 python -m flwcnx.api.server --mode synthetic --port 8010  # stream decisions live
 ```
 
@@ -93,6 +96,7 @@ python -m flwcnx.api.server --mode synthetic --port 8010  # stream decisions liv
 | **Progress log** | [`docs/progress.md`](docs/progress.md) - one entry per phase, including the two withdrawn claims |
 | **Novelty audit** | [`docs/novelty-review.md`](docs/novelty-review.md) - independent literature check that withdrew our methods claim |
 | **Data access** | [`docs/data-access.md`](docs/data-access.md) - every route checked to obtain the traces, and the workaround |
+| **Protection layer** | [`flwcnx/decide/flows.py`](flwcnx/decide/flows.py) and [`flwcnx/decide/protect.py`](flwcnx/decide/protect.py) - the scorer and the allocator, both documented in full at the top of the file |
 
 ## What was learned
 
