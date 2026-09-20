@@ -11,6 +11,7 @@ with its config snapshot inside the JSON or named in the markdown.
 | `phase1-starnet-gate.md` | Phase 1 gate, passed. Average within 1.1% RMSE and 2.4% MAE of published. |
 | `phase2-bgcfqs-gate.md` | Phase 2 gate, passed, and the split sensitivity finding that was needed to pass it. |
 | `requirements-1-5-6.md` | Latency spike prediction, availability and operational cost: the three industry needs the throughput pipeline did not answer. Contains the break-even ratio and the AUPRC argument for online calibration. |
+| `protection-canada.md`, `protection-germany.md`, `protection-usa.md` | The protection layer: which flow gets throttled when the bound falls. **The capacity is measured and the flows are a model**, for the reason given in `docs/limitations.md` section 4c, and every table there says so. |
 
 `starnet-regime-grid.md` and `osnabruck-capacity.md` **disagree about the
 regime layer**. That is the honest state of the project and both are kept.

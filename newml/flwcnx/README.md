@@ -23,13 +23,18 @@ The system forecasts downlink throughput one horizon ahead, converts that point
 forecast into a *safe lower bound* whose overestimation rate is held at a stated
 risk budget, and drives admission control and congestion alerts from that bound.
 
-Three of the six problems in the brief are addressed, chosen because they chain
-into a single system rather than three disconnected models:
+Four of the six problems in the brief are addressed, chosen because they chain
+into a single system rather than four disconnected models:
 
 1. Predict throughput degradation (the forecaster).
 2. Detect congestion before users are affected (derived from the bound, not a
    separate classifier).
 3. Optimize bandwidth allocation automatically (the decision layer).
+4. Decide *which* flow is throttled when capacity is short, so that shedding
+   load does not halt the work that must not be halted (the protection layer).
+
+The other two, service availability and operational cost, are measured rather
+than optimised, in [`results/summary/requirements-1-5-6.md`](results/summary/requirements-1-5-6.md).
 
 **What is new here is empirical, not algorithmic.** The mechanisms evaluated in
 this project are all published and are cited as such. The findings are ours.
@@ -250,6 +255,12 @@ decide/     safe bound to allocation + alerts     (no ML)
 eval/       harness, splits, metrics, figures
 ```
 
+`decide/` has two halves. The link half answers "how much fits": admission
+control, the congestion flag, availability and cost. The flow half answers
+"which flow gets it": an online criticality scorer and an allocator that
+divides the same calibrated bound across contending flows under protected
+floors. Nothing in either half is trained.
+
 Two ingestion modes sit behind one interface. `ReplaySource` and the WetLinks
 sources are the real path. `LiveSource` wires a terminal, a TLE feed and a
 weather feed, and is a stub until a dish is available.
@@ -270,7 +281,11 @@ flwcnx/
   forecast/            StarNet backbone, DLinear/PatchTST/TimesNet/XGBoost
   calibrate/           split conformal, per-regime, online, BG-CFQS baseline
   decide/              admission control, congestion, SLA and cost
+                       flows.py    online criticality scoring, seven channels
+                       protect.py  weighted max-min fair allocation with floors
   eval/                splits, metrics, experiment runner, figures
+                       workload.py the labelled flow workload (generated)
+                       protection.py the protection harness and its metrics
   demo/                slot-by-slot replay engine
 docs/                  paper, report, limitations, progress, references.bib
 scripts/               one entry point per experiment, plus figure and table generators
@@ -298,7 +313,23 @@ Being precise about this matters more than anything else in the repo.
 - **running that update per covariate group**, which is GCACI (Ramalingam et
   al. 2025, arXiv:2502.10947), and which POGO (arXiv:2606.00419) improves on by
   removing the learning rate. `calibrate/adaptive.py` is the naive special case
-  of GCACI and was built before this was known. See `docs/novelty-assessment.md`.
+  of GCACI and was built before this was known. See `docs/novelty-assessment.md`;
+- weighted max-min fairness by progressive filling (Bertsekas and Gallager
+  section 6.5.2), fair queueing (Demers, Keshav and Shenker, SIGCOMM 1989) and
+  per-flow guarantees (Parekh and Gallager, ToN 1993), which are the allocation
+  rule and two of its baselines;
+- class-based prioritisation (RFC 2474), which is the third baseline;
+- deadline-driven flow scheduling (D3, SIGCOMM 2011; PDQ, SIGCOMM 2012), which
+  the deadline channel uses as *evidence about criticality* rather than as the
+  scheduling objective;
+- sequential evidence accumulation in log-odds (Wald 1945).
+
+**The protection layer is assembled from those parts and is not claimed as a
+new mechanism.** What is specific to it is the coupling: the allocator divides
+the *calibrated bound* rather than a point forecast, which is what makes a
+protected floor an assertion that can be checked instead of a statement about a
+number the link may not meet. The README figure that checks it is
+[Dividing the bound](#a-floor-written-against-a-forecast-the-link-misses-is-not-a-floor).
 
 **Ours:** measurement, not method. A literature check on 2026-09-01
 (`docs/novelty-assessment.md`) found that the calibration layer this project was
@@ -426,17 +457,91 @@ python scripts/run_cross_site.py --held-out Enschede    # cross-site holdout
 python scripts/run_requirements.py                      # latency, availability, cost
 python scripts/compare_backbones.py <run-dirs> --out <file>
 python scripts/run_demo.py --location canada            # the replay demo
+python scripts/run_protection.py --location canada      # the protection layer, six arms
 
 # the WetLinks path, which is how the project ran before the traces arrived
 python scripts/run_wetlinks.py --release seconds --site Osnabruck --geometry \
     --epochs 30 --stride 1 --output results/final
 
-python scripts/make_readme_figures.py                   # the seven README figures, 300 DPI
+python scripts/make_readme_figures.py                   # seven README figures, 300 DPI
+python scripts/make_protection_figures.py --run results/protection/canada   # eight more
+python scripts/make_protection_summary.py results/protection/canada \
+    --out results/summary/protection-canada.md
 python scripts/make_figures.py <run-dir>                # per-run figures from a saved run
 python scripts/make_summary.py <run-dir> --out <file>   # committed markdown tables
 ```
 
 Seeded throughout (default 1337) and the seed is recorded in every result file.
+
+## Using the protection layer
+
+The layer is a library before it is an experiment. Two objects: a scorer that
+watches flows, and an allocator that divides a capacity bound across them.
+
+```python
+from flwcnx.decide.flows import FlowClass, FlowObservation, FlowSpec
+from flwcnx.decide.protect import ProtectionController
+
+controller = ProtectionController.build()
+
+# A radiology study against a reporting deadline. It does not declare itself,
+# because the modality vendor's uploader does not set DSCP.
+imaging = FlowSpec("pacs-7", declared=FlowClass.STANDARD,
+                   floor_mbps=15.0, demand_mbps=28.0, bytes_total_mbit=4200.0,
+                   deadline_s=180.0, resumable=False)
+backup = FlowSpec("backup-2", declared=FlowClass.BACKGROUND,
+                  demand_mbps=22.0, recurrence=0.95)
+
+def observe(remaining_mbit: float, slack_s: float) -> dict:
+    return {
+        # Inelastic: still asking for its peak rate after being throttled.
+        "pacs-7": (imaging, FlowObservation(
+            demand_mbps=28.0, demand_peak_mbps=28.0, throttled_last=True,
+            granted_last_mbps=9.0, mbit_up=45.0, packets_up=4_000,
+            remaining_mbit=remaining_mbit, deadline_remaining_s=slack_s,
+            progress=1.0 - remaining_mbit / 4200.0)),
+        # Elastic: offered load has collapsed to what it was given.
+        "backup-2": (backup, FlowObservation(
+            demand_mbps=6.0, demand_peak_mbps=22.0, throttled_last=True,
+            granted_last_mbps=6.0, mbit_up=30.0, packets_up=2_600)),
+    }
+
+# Each call is one decision. `bound_mbps` is what the calibration layer says the
+# next horizon can be trusted to carry.
+for slack in (150.0, 120.0, 90.0, 60.0, 30.0):
+    allocation = controller.step(bound_mbps=20.0,
+                                 observations=observe(2_600.0, slack))
+
+allocation.rates                 # {"pacs-7": 18.44, "backup-2": 1.56}
+allocation.protection_breached   # False: the floor fitted
+controller.scorer.criticality("pacs-7")     # 0.685, above the 0.60 threshold
+controller.scorer.is_protected("backup-2")  # False, and still getting 1.56 Mbps
+```
+
+Nothing about either flow changes across those five calls except the deadline
+slack, and that is what moves the imaging study across the protection
+threshold. On the first decision it scores 0.45 and is not protected; by the
+fifth it is. The backup is throttled hard and never stopped.
+
+Three properties hold by construction and are pinned by tests:
+
+- **Floors are honoured whenever they jointly fit.** If the protected floors sum
+  to no more than the capacity, every protected flow receives at least its floor.
+- **The allocation is work conserving.** It sums to `min(capacity, total demand)`,
+  so capacity a critical flow does not want is not held idle for it.
+- **Nothing is halted while capacity remains.** Every weight is strictly
+  positive, so a flow scored at zero criticality is throttled rather than
+  stopped. Killing a connection does not save its bytes; it defers them into a
+  retry, usually into the same congestion episode.
+
+When the floors do **not** fit, no allocation satisfies them. The layer grants
+floors in strict criticality order until the capacity runs out and returns the
+rest in `allocation.breached`. That field is an alarm rather than a diagnostic:
+it is the case where the link physically cannot carry what has been declared
+critical, and the answer to it is an operator decision.
+
+`channel_scores(spec, obs)` returns each channel's contribution, so any
+protection decision can be traced back to the evidence that drove it.
 
 ## Project status
 
