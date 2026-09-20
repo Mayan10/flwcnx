@@ -301,7 +301,7 @@ def fig_cost(run: Path, out: Path) -> Path | None:
     if frame.empty:
         return None
 
-    fig, ax = plt.subplots(figsize=(8.4, 5.2))
+    fig, ax = plt.subplots(figsize=(10.4, 5.2))
     points: list[tuple[float, float, str, str, float]] = []
     for policy, group in frame.groupby("policy"):
         # Both axes are "gave up", so they are directly comparable and the
@@ -321,24 +321,26 @@ def fig_cost(run: Path, out: Path) -> Path | None:
     # Label on whichever side has room. Placing every label to the right runs
     # the rightmost ones off the frame, and widening the axis to fit them
     # leaves the points bunched in one corner.
-    midpoint = np.median([p[0] for p in points])
+    # All labels to the right of their marker, with the axis widened to hold
+    # them. Alternating sides puts the longest label off the left edge, and
+    # stacking them above the markers collides wherever two policies land
+    # within a few points of each other.
     for x, y, policy, _, goodput in points:
-        right = x <= midpoint
-        ax.annotate(f"{POLICY_LABEL[policy]}\n"
-                    f"{y:.0%} of critical transfers gave up, "
-                    f"{goodput:.0%} of critical demand delivered",
-                    (x, y), textcoords="offset points",
-                    xytext=(12 if right else -12, 6), fontsize=9,
-                    ha="left" if right else "right",
-                    color=TEXT_SECONDARY, va="center")
+        ax.annotate(f"  {POLICY_LABEL[policy]}, {goodput:.0%} of critical demand delivered",
+                    (x, y), textcoords="offset points", xytext=(10, 0), fontsize=9,
+                    ha="left", color=TEXT_SECONDARY, va="center")
 
     _style(ax, title="Protecting critical traffic is paid for by everything else",
            subtitle=f"at {reference:g}x offered load; a transfer held below a useful "
                     f"rate for five minutes gives up. Down is better, right is the price.",
            xlabel="ordinary transfers that gave up",
            ylabel="critical transfers that gave up")
+    # Both axes are rates, so the frame stops at 100 per cent. The labels run
+    # past it into the figure margin, which the tight bounding box keeps.
     lo, hi = ax.get_xlim()
-    ax.set_xlim(lo - (hi - lo) * 0.30, hi + (hi - lo) * 0.30)
+    ax.set_xlim(max(0.0, lo - 0.02), min(1.0, hi + 0.03))
+    ax.xaxis.set_major_formatter(lambda v, _: f"{v:.0%}")
+    ax.yaxis.set_major_formatter(lambda v, _: f"{v:.0%}")
     return _save(fig, out / "protection-cost.png")
 
 
