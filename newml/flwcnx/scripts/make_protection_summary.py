@@ -47,8 +47,9 @@ def policy_table(rows: list[dict], load: float) -> str:
     frame = frame[frame["load_multiplier"] == load]
     lines = [
         "| policy | critical violation (allocated) | critical violation (delivered) "
-        "| critical goodput | ordinary goodput | link utilisation | ordinary slowdown |",
-        "|---|---|---|---|---|---|---|",
+        "| critical transfers abandoned | critical goodput | ordinary goodput "
+        "| link utilisation | ordinary slowdown |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for policy in ORDER:
         group = frame[frame["policy"] == policy]
@@ -59,6 +60,7 @@ def policy_table(rows: list[dict], load: float) -> str:
             f"| {_fmt(_mean(group, 'critical_violation_allocated'))} "
             f"+/- {_fmt(_spread(group, 'critical_violation_allocated'))} "
             f"| {_fmt(_mean(group, 'critical_violation_delivered'))} "
+            f"| {_fmt(_mean(group, 'critical_abandon_rate'))} "
             f"| {_fmt(_mean(group, 'critical_goodput_ratio'))} "
             f"| {_fmt(_mean(group, 'ordinary_goodput_ratio'))} "
             f"| {_fmt(_mean(group, 'utilisation'))} "

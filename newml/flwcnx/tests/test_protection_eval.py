@@ -203,3 +203,52 @@ def test_the_archetype_breakdown_names_where_the_violations_land():
     table = run.by_archetype()
     assert set(table["archetype"]) <= {a.name for a in ARCHETYPES}
     assert table["violation_allocated"].between(0.0, 1.0).all()
+
+
+def test_a_flow_held_below_a_useful_rate_gives_up():
+    """Without this the generator has no steady state above capacity: arrivals
+    continue while starved transfers take proportionally longer, so the active
+    set grows for the whole run."""
+    workload = FlowWorkload(WorkloadSpec(seed=8, abandon_after_slots=10))
+    workload.warm_start(0)
+    started = len(workload.active)
+    for t in range(40):
+        observations = workload.observe(t)
+        workload.apply(t, dict.fromkeys(observations, 0.0), realised_mbps=0.0)
+    assert len(workload.active) < started
+    assert any(f.abandoned for f in workload.completed)
+
+
+def test_a_served_flow_never_gives_up():
+    workload = FlowWorkload(WorkloadSpec(seed=8, abandon_after_slots=5))
+    workload.warm_start(0)
+    for t in range(40):
+        observations = workload.observe(t)
+        workload.apply(t, {k: 100.0 for k in observations}, realised_mbps=1e6)
+    assert not any(f.abandoned for f in workload.all_flows())
+
+
+def test_abandonment_keeps_the_active_set_bounded_under_heavy_load():
+    workload = FlowWorkload(WorkloadSpec(seed=8, load_multiplier=4.0))
+    workload.warm_start(0)
+    sizes = []
+    for t in range(400):
+        observations = workload.observe(t)
+        # A link carrying far less than is offered.
+        workload.apply(t, dict.fromkeys(observations, 0.3), realised_mbps=20.0)
+        sizes.append(len(workload.active))
+    # The second half is not systematically larger than the first, which is
+    # what "bounded" means here.
+    assert np.mean(sizes[200:]) < np.mean(sizes[:200]) * 1.6
+
+
+def test_abandonment_is_reported_rather_than_hidden():
+    """A critical transfer that gave up is the worst outcome the layer has.
+    Counting it as no longer violating its floor would be the wrong
+    bookkeeping."""
+    run = run_policy("protected", np.full(200, 3.0), np.full(200, 3.0),
+                     WorkloadSpec(seed=8, load_multiplier=3.0,
+                                  abandon_after_slots=20))
+    summary = run.summary()
+    assert summary["critical_abandon_rate"] > 0.0
+    assert "abandoned" in run.flows

@@ -217,13 +217,17 @@ reader:
    the excess is shared in proportion to the allocated rates. A real bottleneck
    distributes loss by queue occupancy and RTT, and a real shaper would enforce
    the rates rather than let them collide.
-6. **The offered-load sweep is not a steady state.** Arrivals continue at a
-   fixed rate while starved transfers take proportionally longer to finish, so
-   above capacity the active set grows over the run rather than settling. The
-   sweep stops at 4x for that reason: past it the run measures an accumulating
-   backlog more than it measures a policy. Even inside the sweep, the higher
-   levels carry more backlog than the lower ones, so the curve should be read
-   as a trend and not as six independent operating points.
+6. **What keeps the offered-load sweep from running away is a modelled
+   give-up rule.** Arrivals continue at a fixed rate while starved transfers
+   take proportionally longer to finish, so without one the active set would
+   grow for the whole run and the load level would stop meaning what it says.
+   A flow held below a useful rate for sixty consecutive slots, five minutes at
+   the default horizon, abandons. Real transfers do give up, but sixty slots is
+   a guess and the abandonment rates are sensitive to it. They are reported
+   beside the violation rates rather than folded into them, because a critical
+   transfer that gave up is the worst outcome the layer has and counting it as
+   no longer violating its floor would be the wrong bookkeeping. The sweep also
+   stops at 4x, past which the run is mostly measuring the give-up rule.
 
 The one claim that does not depend on the workload is the allocator's
 guarantee, which is algebraic: whenever the protected floors sum to no more

@@ -236,6 +236,20 @@ class WorkloadSpec:
     #: the archetypes that are undeclared by construction. Models the host
     #: where nothing sets DSCP.
     declaration_loss: float = 0.0
+    #: Consecutive slots below a useful rate before a flow gives up. Without
+    #: it the generator has no steady state above capacity: arrivals continue
+    #: while starved transfers take proportionally longer, so the active set
+    #: grows for the whole run and the load level stops meaning what it says.
+    #: Real transfers do not wait forever either. 60 slots is five minutes at
+    #: the default horizon, and abandonment is reported rather than hidden,
+    #: because a critical transfer that gave up is the worst outcome the layer
+    #: has and counting it as "not violating its floor any more" would be the
+    #: wrong bookkeeping.
+    abandon_after_slots: int = 60
+    #: The rate below which a slot counts toward giving up, for a flow whose
+    #: own floor is zero. An elastic transfer squeezed to nothing for five
+    #: minutes gives up too.
+    abandon_floor_mbps: float = 0.5
 
 
 @dataclass
@@ -261,6 +275,8 @@ class ActiveFlow:
     slots_below_floor: int = 0
     slots_alive: int = 0
     delivered_mbit: float = 0.0
+    starved_run: int = 0
+    abandoned: bool = False
 
     @property
     def progress(self) -> float:
@@ -432,6 +448,7 @@ class FlowWorkload:
 
         delivered: dict[str, float] = {}
         finished: list[str] = []
+        useful = self.spec.abandon_floor_mbps
         for flow_id, flow in self.active.items():
             granted = max(rates.get(flow_id, 0.0), 0.0)
             got = granted * scale
@@ -464,7 +481,18 @@ class FlowWorkload:
                 flow.foreground = bool(
                     self.rng_behaviour.random() < flow.archetype.foreground_probability)
 
+            # Giving up. A flow held below a useful rate for long enough stops
+            # waiting, which is both what real transfers do and what keeps the
+            # active set bounded when the link is oversubscribed.
+            if got < max(flow.spec.floor_mbps, useful) - 1e-9:
+                flow.starved_run += 1
+            else:
+                flow.starved_run = 0
+
             if flow.remaining_mbit <= 1e-9:
+                finished.append(flow_id)
+            elif flow.starved_run >= self.spec.abandon_after_slots:
+                flow.abandoned = True
                 finished.append(flow_id)
 
         for flow_id in finished:

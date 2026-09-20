@@ -153,6 +153,12 @@ class PolicyRun:
 
             # -- the alarm, which is the case where no allocation would do.
             "breach_slot_rate": float(slots["breached"].mean()),
+
+            # -- the worst outcome the layer has. A transfer held below a
+            #    useful rate long enough stops waiting, and a critical one that
+            #    gave up is not the same as one that was merely slow.
+            "critical_abandon_rate": _abandon_rate(flows, critical=True),
+            "ordinary_abandon_rate": _abandon_rate(flows, critical=False),
         }
 
         if "criticality" in rows and rows["criticality"].notna().any():
@@ -201,6 +207,11 @@ def _precision(frame: pd.DataFrame) -> float:
 def _recall(frame: pd.DataFrame) -> float:
     positives = frame[frame["truly_critical"]]
     return float(positives["protected"].mean()) if len(positives) else float("nan")
+
+
+def _abandon_rate(flows: pd.DataFrame, critical: bool) -> float:
+    subset = flows[flows["truly_critical"] == critical]
+    return float(subset["abandoned"].mean()) if len(subset) else float("nan")
 
 
 def _median_detect(flows: pd.DataFrame) -> float:
@@ -352,6 +363,7 @@ def _flow_table(workload: FlowWorkload, first_seen: dict[str, int],
             "slots_below_floor": flow.slots_below_floor,
             "delivered_mbit": flow.delivered_mbit, "total_mbit": flow.total_mbit,
             "completed": flow.remaining_mbit <= 1e-9,
+            "abandoned": bool(flow.abandoned),
             # How much longer the flow took than it would have on an idle link.
             # The cost the elastic traffic pays for the protection, and the
             # number that stops "protect everything" from looking free.

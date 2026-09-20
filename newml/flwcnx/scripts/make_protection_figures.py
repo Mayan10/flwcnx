@@ -287,8 +287,9 @@ def fig_cost(run: Path, out: Path) -> Path | None:
     that says it works.
 
     A layer that protected critical traffic by starving everything else would
-    score perfectly on the sweep above. The horizontal axis is what the elastic
-    traffic pays for it.
+    score perfectly on the sweep above. Both axes count transfers that gave up,
+    so they are in the same units and the trade needs no second scale: the
+    vertical axis is what the layer buys and the horizontal one is who pays.
     """
     data = _read(run)
     rows = data.get("policies")
@@ -301,34 +302,41 @@ def fig_cost(run: Path, out: Path) -> Path | None:
         return None
 
     fig, ax = plt.subplots(figsize=(8.4, 5.2))
-    points: list[tuple[float, float, str, str]] = []
+    points: list[tuple[float, float, str, str, float]] = []
     for policy, group in frame.groupby("policy"):
-        x = float(group["completion_inflation_ordinary"].mean())
-        y = float(group["critical_goodput_ratio"].mean())
+        # Both axes are "gave up", so they are directly comparable and the
+        # trade is legible without a second scale. Goodput and slowdown go in
+        # the label rather than on an axis.
+        x = float(group["ordinary_abandon_rate"].mean())
+        y = float(group["critical_abandon_rate"].mean())
         if not np.isfinite(x) or not np.isfinite(y):
             continue
         oracle = policy == "oracle"
         colour = TEXT_SECONDARY if oracle else POLICY_COLOUR[policy]
         ax.scatter([x], [y], s=190, color=colour, zorder=4, edgecolor=SURFACE,
                    linewidth=2.0, marker="D" if oracle else "o")
-        points.append((x, y, policy, colour))
+        points.append((x, y, policy, colour,
+                       float(group["critical_goodput_ratio"].mean())))
 
     # Label on whichever side has room. Placing every label to the right runs
     # the rightmost ones off the frame, and widening the axis to fit them
     # leaves the points bunched in one corner.
     midpoint = np.median([p[0] for p in points])
-    for x, y, policy, _ in points:
+    for x, y, policy, _, goodput in points:
         right = x <= midpoint
-        ax.annotate(f"{POLICY_LABEL[policy]}\n{y:.0%} of critical demand delivered",
+        ax.annotate(f"{POLICY_LABEL[policy]}\n"
+                    f"{y:.0%} of critical transfers gave up, "
+                    f"{goodput:.0%} of critical demand delivered",
                     (x, y), textcoords="offset points",
                     xytext=(12 if right else -12, 6), fontsize=9,
                     ha="left" if right else "right",
                     color=TEXT_SECONDARY, va="center")
 
     _style(ax, title="Protecting critical traffic is paid for by everything else",
-           subtitle=f"at {reference:g}x offered load; up and to the left is better",
-           xlabel="how much longer an ordinary transfer takes than on an idle link",
-           ylabel="share of critical demand delivered")
+           subtitle=f"at {reference:g}x offered load; a transfer held below a useful "
+                    f"rate for five minutes gives up. Down is better, right is the price.",
+           xlabel="ordinary transfers that gave up",
+           ylabel="critical transfers that gave up")
     lo, hi = ax.get_xlim()
     ax.set_xlim(lo - (hi - lo) * 0.30, hi + (hi - lo) * 0.30)
     return _save(fig, out / "protection-cost.png")
