@@ -484,3 +484,34 @@ across workload seeds. Attention and volume are neutral, and interactivity is
 slightly negative. The defaults were not retuned on the strength of that table,
 because fitting the weights on the evaluation workload and then evaluating on
 the same generator is the circularity the module docstring warns about.
+
+### Phase 9b. All three links, and what Chicago showed
+
+The layer replicates on Osnabruck and Chicago, but only once the comparison is
+made at the right point. The three traces do not deliver the same capacity:
+Chicago carries about 222 Mbps against Victoria's 146. The same workload at the
+same nominal setting therefore leaves one link comfortably under capacity and
+the other half as much again over it, and against the workload's own load
+multiplier the three look like three different results.
+
+At roughly 1.8x unconstrained demand over delivered capacity, critical-flow
+violation is 0.065 on Victoria, 0.048 on Osnabruck and 0.042 on Chicago,
+against a best deployable baseline of 0.218, 0.165 and 0.141 and an oracle of
+0.029, 0.012 and 0.003. The capacity arm inverts the same way on all three, the
+same two evidence channels carry the layer on all three, and the hysteresis
+band cuts the flap rate by a factor of two to three on all three.
+
+**Chicago also produced a property worth recording on its own.** At 2x nominal
+load it is not short of capacity. Nothing is throttled, so the elasticity
+channel has no experiment to read and the deadline channel sees plenty of
+slack, and the radiology push scores 0.24 rather than the 0.72 it scores on
+Victoria. It is not protected, because nothing needs protecting. The layer is
+inert until congestion makes it necessary, which was not designed for and falls
+out of the channels being closed-loop.
+
+Two figures had been drawn against two different definitions of offered load,
+one measured and one unconstrained, and the README quoted one beside a figure
+drawn with the other. Both use unconstrained demand now. The measured offered
+load cannot be a shared axis, because it falls when elastic transfers back off
+and by a different amount under each policy, which would shift every policy's
+line sideways against the others.
