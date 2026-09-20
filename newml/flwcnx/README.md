@@ -487,7 +487,7 @@ new mechanism.** What is specific to it is the coupling: the allocator divides
 the *calibrated bound* rather than a point forecast, which is what makes a
 protected floor an assertion that can be checked instead of a statement about a
 number the link may not meet. The README figure that checks it is
-[Dividing the bound](#a-floor-written-against-a-forecast-the-link-misses-is-not-a-floor).
+[Why the bound and not the forecast](#why-the-bound-and-not-the-forecast).
 
 **Ours:** measurement, not method. A literature check on 2026-09-01
 (`docs/novelty-assessment.md`) found that the calibration layer this project was
