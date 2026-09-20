@@ -208,7 +208,7 @@ under this layer it is pinned at the floor below which it is not worth carrying.
 
 ### It holds across the whole congestion range
 
-![Critical-flow floor violations against offered load, five policies](docs/figures/protection-policy-sweep.png)
+![Critical-flow floor violations against unconstrained demand, five policies](docs/figures/protection-policy-sweep.png)
 
 Victoria, 2,000 decisions, five workload seeds, at 2x nominal load. The flows
 would ask for 1.8x what the link delivered if nothing constrained them:
