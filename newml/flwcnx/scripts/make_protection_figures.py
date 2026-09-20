@@ -56,6 +56,10 @@ POLICY_COLOUR = {
     "equal_share": VIOLET,
     "shed_largest": AQUA,
 }
+#: Trace folder to the city the trace was actually recorded in. Two of the
+#: three released folders are mislabelled, which is documented in the data
+#: section of the README and handled in the loader.
+LOCATION_LABEL = {"usa": "Chicago", "germany": "Osnabruck", "canada": "Victoria"}
 POLICY_LABEL = {
     "protected": "criticality-weighted, with floors (ours)",
     "by_class": "class priority (DiffServ)",
@@ -236,6 +240,10 @@ def fig_policy_sweep(run: Path, out: Path) -> Path | None:
                   for a in data.get("workload_archetypes", []))
     capacity = float(data.get("capacity_series", {}).get("realised_mean_mbps", 0.0)) or 1.0
     load["mean_over"] = load["load_multiplier"] * nominal / capacity
+    # This is *unconstrained* demand: what the flows would ask for on an idle
+    # link. Their measured offered load is lower, because elastic transfers back
+    # off, and by a different amount under each policy, which is exactly why it
+    # cannot be the shared axis.
 
     fig, ax = plt.subplots(figsize=(8.2, 5.2))
     oracle = load[load["policy"] == "oracle"].sort_values("load_multiplier")
@@ -266,11 +274,11 @@ def fig_policy_sweep(run: Path, out: Path) -> Path | None:
     _style(ax, title="Under congestion, which flow is throttled is the whole question",
            subtitle="critical flows held below the rate at which they are useful, "
                     "by policy, mean and spread over workload seeds",
-           xlabel="offered load as a multiple of delivered capacity",
+           xlabel="unconstrained demand as a multiple of delivered capacity",
            ylabel="critical-flow floor violation rate")
     ax.axvspan(0.0, 1.0, color=GRID, alpha=0.45, zorder=0)
     ax.set_xlim(left=float(load["mean_over"].min()) * 0.95)
-    ax.text(min(1.0, ax.get_xlim()[1]), ax.get_ylim()[1] * 0.97, "  link not oversubscribed",
+    ax.text(min(1.0, ax.get_xlim()[1]), ax.get_ylim()[1] * 0.97, "  demand below capacity",
             fontsize=8.5, color=TEXT_SECONDARY, va="top", style="italic")
     # Below the axes. Five entries do not fit in any corner once the sweep has
     # its full set of load levels, and every corner has a series in it.
@@ -656,6 +664,77 @@ def fig_evidence(run: Path, out: Path) -> Path | None:
     return _save(fig, out / "protection-evidence.png")
 
 
+# -- 9. cross location ------------------------------------------------------
+
+
+def fig_cross_location(runs: list[Path], out: Path) -> Path | None:
+    """The same sweep on three links, as small multiples.
+
+    Fifteen series on one pair of axes is past what any palette separates, and
+    the comparison of interest is within a panel rather than across them.
+
+    The x axis is oversubscription rather than the workload's nominal load
+    multiplier, and that is the whole reason this figure exists. Chicago
+    delivers about 222 Mbps against Victoria's 146, so the same workload at the
+    same nominal setting leaves one link comfortably under capacity and the
+    other half as much again over it. Plotted against the load multiplier the
+    three panels look like three different results; plotted against how
+    oversubscribed each link actually is, they are one.
+    """
+    loaded = [(r, _read(r)) for r in runs if (r / "result.json").exists()]
+    if len(loaded) < 2:
+        return None
+
+    fig, axes = plt.subplots(1, len(loaded), figsize=(4.3 * len(loaded), 4.4),
+                             sharey=True, gridspec_kw={"wspace": 0.09})
+    axes = np.atleast_1d(axes)
+
+    for index, (ax, (run, data)) in enumerate(zip(axes, loaded, strict=True)):
+        rows = data.get("policies")
+        if not rows:
+            continue
+        load = _aggregate(rows, ["policy", "load_multiplier"],
+                          "critical_violation_allocated")
+        nominal = sum(a["nominal_mbps"] * a["concurrency"]
+                      for a in data.get("workload_archetypes", []))
+        realised = float(data.get("capacity_series", {})
+                         .get("realised_mean_mbps", 0.0)) or 1.0
+        load["mean_over"] = load["load_multiplier"] * nominal / realised
+
+        oracle = load[load["policy"] == "oracle"].sort_values("load_multiplier")
+        if not oracle.empty:
+            ax.plot(oracle["mean_over"], oracle["mean"], linestyle="--",
+                    linewidth=1.5, color=TEXT_SECONDARY, zorder=5,
+                    label=POLICY_LABEL["oracle"])
+        for policy in DEPLOYABLE:
+            series = load[load["policy"] == policy].sort_values("load_multiplier")
+            if series.empty:
+                continue
+            colour = POLICY_COLOUR[policy]
+            ax.fill_between(series["mean_over"], series["mean"] - series["std"],
+                            series["mean"] + series["std"], color=colour,
+                            alpha=0.13, linewidth=0, zorder=2)
+            ax.plot(series["mean_over"], series["mean"], marker="o", markersize=5.5,
+                    linewidth=1.9, color=colour, zorder=4, label=POLICY_LABEL[policy],
+                    markeredgecolor=SURFACE, markeredgewidth=1.2)
+
+        ax.axvspan(0.0, 1.0, color=GRID, alpha=0.45, zorder=0)
+        _style(ax, title=f"{LOCATION_LABEL.get(run.name, run.name)}, "
+                         f"{realised:.0f} Mbps delivered",
+               xlabel="unconstrained demand over delivered capacity")
+        if index == 0:
+            ax.set_ylabel("critical-flow floor violation rate",
+                          color=TEXT_SECONDARY, fontsize=10)
+        ax.set_xlim(left=0.3)
+
+    axes[0].legend(frameon=False, fontsize=9, labelcolor=TEXT_SECONDARY, ncol=5,
+                   loc="upper left", bbox_to_anchor=(0.0, -0.17))
+    fig.suptitle("Three links, one result, once the axis is what the link is "
+                 "actually carrying", x=0.005, ha="left", fontsize=13,
+                 color=TEXT_PRIMARY, y=1.04)
+    return _save(fig, out / "protection-cross-location.png")
+
+
 FIGURES = (fig_case_study, fig_policy_sweep, fig_cost, fig_scorer,
            fig_deadline, fig_ablation, fig_calibration_coupling, fig_evidence)
 
@@ -664,10 +743,21 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run", type=Path, default=Path("results/protection/canada"))
+    parser.add_argument("--cross", type=Path, nargs="*",
+                        default=[Path("results/protection/canada"),
+                                 Path("results/protection/germany"),
+                                 Path("results/protection/usa")],
+                        help="runs for the cross-location panel")
     parser.add_argument("--out", type=Path, default=Path("docs/figures"))
     args = parser.parse_args(argv)
 
     written = 0
+    path = fig_cross_location(list(args.cross), args.out)
+    if path is None:
+        print("skipped fig_cross_location: fewer than two runs available")
+    else:
+        print(f"wrote {path}  ({DPI} DPI)")
+        written += 1
     for figure in FIGURES:
         path = figure(args.run, args.out)
         if path is None:

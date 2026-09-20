@@ -102,7 +102,7 @@ python -m flwcnx.api.server --mode synthetic --port 8010  # stream decisions liv
 
 Four figures. Every number is read from a saved `result.json`, and
 `scripts/make_readme_figures.py` regenerates all of them at 300 DPI. The
-protection layer has [six more](#which-flow-gets-throttled), from
+protection layer has [seven more](#which-flow-gets-throttled), from
 `scripts/make_protection_figures.py`.
 
 ### A published method silently ignores tight risk budgets
@@ -210,8 +210,8 @@ under this layer it is pinned at the floor below which it is not worth carrying.
 
 ![Critical-flow floor violations against offered load, five policies](docs/figures/protection-policy-sweep.png)
 
-Victoria, 2,000 decisions, five workload seeds. At 2x offered load, which is
-1.28x the capacity the link actually delivered:
+Victoria, 2,000 decisions, five workload seeds, at 2x nominal load. The flows
+would ask for 1.8x what the link delivered if nothing constrained them:
 
 | policy | critical transfers that **gave up** | floor violation rate | critical demand delivered |
 |---|---|---|---|
@@ -224,9 +224,10 @@ Victoria, 2,000 decisions, five workload seeds. At 2x offered load, which is
 A transfer held below a useful rate for five minutes gives up, which is both
 what real transfers do and what keeps the simulated backlog bounded. **One
 critical transfer in three hundred gives up under this layer, against one in
-four under class priority.** The sweep is the honest form: below 1x nothing has
-to be shed and every policy is within a point of every other, and by 4x the
-floors stop fitting and the oracle itself violates 0.175.
+four under class priority.** The sweep is the honest form: while demand sits
+below capacity nothing has to be shed and every policy is within a point of
+every other, and at 3.6x the floors stop fitting and the oracle itself violates
+0.175.
 
 The residual violations are not spread evenly. Of the four critical archetypes,
 the patient monitor and the teleconsultation are held above their floors on
@@ -234,6 +235,34 @@ essentially every slot (0.001 and 0.000), the research upload on 94% of them,
 and **almost all of what is left is the radiology push**, at 0.217. It is the
 largest critical flow on the link, it does not declare itself, and it is the
 first thing that stops fitting when the bound falls.
+
+### The same result on all three links
+
+![Victoria, Osnabruck and Chicago, one panel each, the same shape in all three](docs/figures/protection-cross-location.png)
+
+The three traces do not deliver the same capacity: Chicago carries about 222
+Mbps against Victoria's 146. The same workload at the same nominal setting
+therefore leaves one link comfortably under capacity and the other half as much
+again over it, and **plotted against the workload's own load multiplier the
+three panels look like three different results.** Plotted against how
+oversubscribed each link actually is, they are one.
+
+At the point where each link is carrying about 1.8x what its flows would ask
+for unconstrained:
+
+| link | ours | best baseline | oracle |
+|---|---|---|---|
+| Victoria, 146 Mbps | **0.065** | 0.218 (throttle largest) | 0.029 |
+| Osnabruck, 153 Mbps | **0.048** | 0.165 (throttle largest) | 0.012 |
+| Chicago, 222 Mbps | **0.042** | 0.141 (throttle largest) | 0.003 |
+
+A property worth stating because it is not obvious: **when the link is not
+short of capacity the layer does almost nothing.** On Chicago at 2x nominal
+load, where demand sits at 1.2x delivered capacity, nothing is throttled, so
+the elasticity channel has no experiment to read and the deadline channel sees
+plenty of slack. The radiology push scores 0.24 instead of 0.72 and is not
+protected, because nothing needs protecting. The layer is inert until
+congestion makes it necessary.
 
 ### It is not free, and the figure says so
 
@@ -304,7 +333,8 @@ its declaration.
 ## Where this work fails
 
 Four more figures, given equal room. Two of these overturned claims the project
-had already made, which is why they are here rather than in a footnote.
+had already made, and one of them was found by drawing a figure and looking at
+it, which is why they are here rather than in a footnote.
 
 ### No covariate we have improves risk control
 
@@ -445,7 +475,7 @@ flwcnx/
                        protection.py the protection harness and its metrics
   demo/                slot-by-slot replay engine
 docs/                  paper, report, limitations, progress, references.bib
-  figures/             the fifteen README figures, 300 DPI, regenerated from runs
+  figures/             the sixteen README figures, 300 DPI, regenerated from runs
 scripts/               one entry point per experiment, plus figure and table generators
 tests/                 318 tests, synthetic fixtures only
 results/summary/       the committed tables (the rest of results/ is gitignored)
