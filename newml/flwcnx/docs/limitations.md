@@ -168,15 +168,93 @@ the dependencies by a static import audit, and it is genuinely required because
 `xgb.XGBRegressor` is xgboost's scikit-learn API. It was present locally as a
 transitive dependency. An import audit cannot see that, and CI could.
 
+## 4c. The protection layer is evaluated on a modelled workload
+
+This is the largest qualification in the document and it applies to every
+number about `decide/flows.py` and `decide/protect.py`.
+
+**The capacity is measured and the flows are a model.** The per-slot capacity
+series is the calibrated bound and the realised throughput from a trained
+pipeline over the real StarNet traces, which is as real as anything else in
+this repository. The flows contending for it come from
+`flwcnx/eval/workload.py` and are generated.
+
+There was no alternative. The protection layer needs per-flow evidence and
+per-flow ground truth, and neither StarNet nor WetLinks carries either: both
+are link-level throughput series with no flow table, no process attribution and
+no user attention signal. No public LEO dataset has them, because collecting
+them means instrumenting the host rather than the link. Driving a simulated
+workload with a real capacity trace is what every adaptive-streaming evaluation
+does, and it is the honest form of the thing, but it is not a measurement of
+real traffic.
+
+What that means concretely, in descending order of how much it should worry a
+reader:
+
+1. **`truly_critical` is a stipulation, not an observation.** It is defined as
+   "throttling this flow below its floor causes harm the operator would not
+   accept", and which archetypes carry it is our choice. Every accuracy figure
+   is accuracy against our own model of what matters.
+2. **The confusion in the workload is ours too.** The archetypes are chosen so
+   that a rate-based shaper and a declaration-trusting policy each fail on a
+   case they cannot see, because a generator without those cases would make
+   the trivial policy win and measure nothing. That choice is argued for in the
+   module docstring, and it is still a choice that favours the layer being
+   evaluated. A workload whose critical flows were all small and all correctly
+   declared would show this layer buying nothing.
+3. **The channel weights are hand set and were not learned.** Fitting them on
+   this generator and evaluating on the same generator is circular, so they
+   were not fitted at all. `scripts/run_protection.py --sensitivity` perturbs
+   each weight by up to a factor of four either way and reports the range; that
+   bounds how much the conclusions depend on the exact values, and bounds
+   nothing about whether the channels are the right ones.
+4. **Elasticity, packet-size profiles, arrival rates and the mix are modelled.**
+   The elasticity response is generated from behaviour rather than read off the
+   label, which is the minimum needed for the channel measuring it to be
+   measuring something, but an exponential backoff toward the granted rate is
+   not TCP.
+5. **The shortfall model is a simplification.** When the bound overestimates,
+   the excess is shared in proportion to the allocated rates. A real bottleneck
+   distributes loss by queue occupancy and RTT, and a real shaper would enforce
+   the rates rather than let them collide.
+
+The one claim that does not depend on the workload is the allocator's
+guarantee, which is algebraic: whenever the protected floors sum to no more
+than the capacity, every protected flow receives at least its floor. That is
+proved by the form of the water-filling solution and pinned on random instances
+in `tests/test_protect.py`. It says nothing about whether the right flows were
+protected.
+
+## 4d. What the scorer still gets wrong
+
+Reported here rather than left in a results file. At the reference load, the
+scorer's recall is high and its precision is not, and the precision cost has a
+single identifiable source: an entertainment video stream and a
+teleconsultation look alike on every channel this layer has. Both are
+inelastic, both sit in the foreground, both show the same packet-size profile,
+and neither has a deadline. The only signal separating them is the declared
+class, which is exactly the signal the layer was built not to depend on.
+
+A protected flow that should not have been protected costs capacity that a
+genuinely critical flow could have used, so this is not a free error. It is
+visible in `docs/figures/protection-scorer.png` as the one blue archetype
+sitting above the threshold, and it is the first thing to fix.
+
 ## 5. Things this system does not do
 
 - No live terminal. `LiveSource.connect` raises.
 - Congestion is a threshold rule on the bound, not a trained detector. That is
   a design choice with a stated rationale, but it means congestion performance
   is entirely inherited from the forecaster and the calibration.
-- The allocation layer assumes uniform 10 Mbps services and an oracle defined
+- The admission layer assumes uniform 10 Mbps services and an oracle defined
   by realised throughput. Real admission control has heterogeneous demands,
-  holding times, and a scheduler.
+  holding times, and a scheduler. `decide/protect.py` relaxes the uniform
+  demand assumption but only against a modelled workload, see section 4c.
+- The protection layer never enforces anything. It computes rates; wiring them
+  to a queueing discipline on a real host is not done and is not stubbed.
+- Criticality is scored per flow and the allocator treats flows as
+  independent. An application whose usefulness depends on several flows at
+  once, which is most of them, is not modelled.
 - The sequence length is capped by the data, not chosen. Every iperf run in the
   WetLinks seconds release is exactly 15 samples, so look-back plus horizon
   cannot exceed 15 and every run here is 10/5. StarNet's 30/5 and BG-CFQS's
