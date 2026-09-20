@@ -221,8 +221,15 @@ A transfer held below a useful rate for five minutes gives up, which is both
 what real transfers do and what keeps the simulated backlog bounded. **One
 critical transfer in three hundred gives up under this layer, against one in
 four under class priority.** The sweep is the honest form: below 1x nothing has
-to be shed and every policy is identical, and by 4x the floors stop fitting and
-the oracle fails too.
+to be shed and every policy is within a point of every other, and by 4x the
+floors stop fitting and the oracle itself violates 0.175.
+
+The residual violations are not spread evenly. Of the four critical archetypes,
+the patient monitor and the teleconsultation are held above their floors on
+essentially every slot (0.001 and 0.000), the research upload on 94% of them,
+and **almost all of what is left is the radiology push**, at 0.217. It is the
+largest critical flow on the link, it does not declare itself, and it is the
+first thing that stops fitting when the bound falls.
 
 ### It is not free, and the figure says so
 
