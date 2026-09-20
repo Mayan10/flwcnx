@@ -98,6 +98,12 @@ __all__ = [
 ]
 
 
+#: Relative slack when comparing a sum of floors against a capacity. Purely
+#: numerical: the same floors summed in two different orders do not give the
+#: same double.
+_FLOOR_TOLERANCE = 1e-9
+
+
 @dataclass(frozen=True)
 class ProtectionConfig:
     """Knobs for the allocator."""
@@ -211,12 +217,22 @@ def weighted_max_min(capacity_mbps: float, weights: dict[str, float],
 
     total_floor = sum(floors.get(i, 0.0) for i in ids)
     # Equality is feasible and lands at tau = 0, which the sweep below handles;
-    # only a strict shortfall is the caller's problem.
-    if capacity_mbps < total_floor:
+    # only a strict shortfall is the caller's problem. The tolerance is not a
+    # softening of that rule: the caller resolves infeasibility by summing the
+    # floors and then hands them back to be summed again in a different order,
+    # and binary floating point makes those two sums differ by an ulp or two on
+    # a link carrying hundreds of megabits. Trimming inside the tolerance keeps
+    # the sweep well posed; anything larger is a real infeasibility and raises.
+    tolerance = _FLOOR_TOLERANCE * max(1.0, total_floor)
+    if capacity_mbps < total_floor - tolerance:
         raise ValueError(
-            f"floors sum to {total_floor:.3f} Mbps against a capacity of "
-            f"{capacity_mbps:.3f}; resolve the infeasibility before filling"
+            f"floors sum to {total_floor:.6f} Mbps against a capacity of "
+            f"{capacity_mbps:.6f}; resolve the infeasibility before filling"
         )
+    if total_floor > capacity_mbps:
+        scale = capacity_mbps / total_floor if total_floor > 0 else 0.0
+        floors = {i: floors.get(i, 0.0) * scale for i in ids}
+        total_floor = capacity_mbps
 
     # Two events per flow: leaving the floor at tau = m/omega, reaching the
     # demand cap at tau = d/omega. Between events the total is A + B * tau.
@@ -265,7 +281,7 @@ def allocate_protected(capacity_mbps: float, flows: list[FlowDemand],
               for f in flows}
 
     breached: tuple[str, ...] = ()
-    if sum(floors.values()) > capacity_mbps:
+    if sum(floors.values()) > capacity_mbps * (1.0 + _FLOOR_TOLERANCE):
         floors, breached = _degrade_floors(capacity_mbps, flows, floors)
 
     rates = weighted_max_min(capacity_mbps, weights, floors, demands)

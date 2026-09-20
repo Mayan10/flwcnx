@@ -282,3 +282,18 @@ def test_the_controller_result_is_an_allocation_result():
     out = controller.step(10.0, {"a": (spec, FlowObservation(demand_mbps=4.0))})
     assert isinstance(out, AllocationResult)
     assert out.utilisation() == pytest.approx(0.4)
+
+
+def test_floors_that_exactly_exhaust_the_capacity_do_not_raise():
+    """Regression. The caller resolves infeasibility by summing the floors and
+    hands them back to be summed again in a different order, and on a link
+    carrying hundreds of megabits those two sums differ by an ulp."""
+    flows = [demand(f"f{i}", 8.0, 8.0, c=0.5, protected=True) for i in range(4)]
+    result = allocate_protected(32.0, flows)
+    assert result.allocated_mbps == pytest.approx(32.0)
+    assert result.breached == ()
+
+
+def test_a_real_shortfall_still_reaches_the_caller():
+    with pytest.raises(ValueError, match="resolve the infeasibility"):
+        weighted_max_min(10.0, {"a": 1.0}, {"a": 10.001}, {"a": 20.0})
