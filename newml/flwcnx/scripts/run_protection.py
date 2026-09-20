@@ -154,7 +154,9 @@ def arm_policies(bound: np.ndarray, actual: np.ndarray, args: argparse.Namespace
             violations = []
             for seed in _seeds(args):
                 run = run_policy(policy, bound, actual,
-                                 workload_spec=_spec(args, load, seed))
+                                 workload_spec=_spec(args, load, seed),
+                                 record_channels=(load == args.reference_load
+                                                  and seed == args.seed))
                 rows.append({"load_multiplier": load, "capacity_source": "bound",
                              "seed": seed} | run.summary())
                 violations.append(rows[-1]["critical_violation_allocated"])
@@ -294,7 +296,8 @@ def arm_episode(bound: np.ndarray, actual: np.ndarray, args: argparse.Namespace
     spec = _spec(args, args.reference_load)
     out = {}
     for policy in ("protected", "shed_largest"):
-        run = run_policy(policy, bound, actual, workload_spec=spec)
+        run = run_policy(policy, bound, actual, workload_spec=spec,
+                         record_channels=(policy == "protected"))
         out[policy] = run.records
         out[f"{policy}_slots"] = run.slots
     return out

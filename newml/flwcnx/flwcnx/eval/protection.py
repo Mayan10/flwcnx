@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from flwcnx.decide.flows import CriticalityScorer, ScorerConfig
+from flwcnx.decide.flows import CriticalityScorer, ScorerConfig, channel_scores
 from flwcnx.decide.protect import (
     POLICIES,
     AllocationResult,
@@ -217,7 +217,8 @@ def _median_detect(flows: pd.DataFrame) -> float:
 def run_policy(policy: str, capacity_mbps: np.ndarray, realised_mbps: np.ndarray,
                workload_spec: WorkloadSpec | None = None,
                scorer_config: ScorerConfig | None = None,
-               protection_config: ProtectionConfig | None = None) -> PolicyRun:
+               protection_config: ProtectionConfig | None = None,
+               record_channels: bool = False) -> PolicyRun:
     """Replay one policy slot by slot and record everything it did.
 
     `capacity_mbps` is what the policy divides, which is the calibrated bound on
@@ -225,6 +226,11 @@ def run_policy(policy: str, capacity_mbps: np.ndarray, realised_mbps: np.ndarray
     `realised_mbps` is what the link actually carried and is revealed only after
     the allocation for that slot has been written, the same ordering the rest of
     the pipeline keeps.
+
+    `record_channels` adds one column per evidence channel to the flow-slot
+    table. Off by default because it roughly doubles the table, and on for the
+    reference run, because a protection decision an operator cannot trace back
+    to the evidence that drove it is not one they can act on.
     """
     capacity_mbps = np.asarray(capacity_mbps, dtype=float).ravel()
     realised_mbps = np.asarray(realised_mbps, dtype=float).ravel()
@@ -274,10 +280,10 @@ def run_policy(policy: str, capacity_mbps: np.ndarray, realised_mbps: np.ndarray
         delivered = workload.apply(t, result.rates, realised_mbps[t])
 
         for flow in flows:
-            spec = observations[flow.flow_id][0]
+            spec, obs = observations[flow.flow_id]
             got = delivered.get(flow.flow_id, 0.0)
             granted = result.rates.get(flow.flow_id, 0.0)
-            rows.append({
+            row = {
                 "slot": t, "flow_id": flow.flow_id,
                 "archetype": flow.flow_id.split("#")[0],
                 "truly_critical": bool(spec.truly_critical),
@@ -287,7 +293,15 @@ def run_policy(policy: str, capacity_mbps: np.ndarray, realised_mbps: np.ndarray
                 "granted_mbps": granted, "delivered_mbps": got,
                 "below_floor_allocated": bool(granted < flow.floor_mbps - 1e-9),
                 "below_floor_delivered": bool(got < flow.floor_mbps - 1e-9),
-            })
+                "progress": obs.progress, "foreground": obs.foreground,
+                "deadline_remaining_s": obs.deadline_remaining_s,
+            }
+            if record_channels:
+                scores = channel_scores(spec, obs, scorer.config)
+                row |= {f"z_{name}": value for name, value in scores.items()}
+                row |= {f"w_{name}": scorer.config.weights.get(name, 0.0) * value
+                        for name, value in scores.items()}
+            rows.append(row)
 
         slot_rows.append({
             "slot": t, "capacity_mbps": float(capacity_mbps[t]),
