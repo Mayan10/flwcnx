@@ -62,7 +62,16 @@ from flwcnx.ingest.replay import ReplaySource
 from flwcnx.state.regime import RegimeAssigner, presets_for
 
 ALL_POLICIES = [ORACLE, "protected", "by_class", "equal_share", "shed_largest"]
-DEFAULT_LOADS = (1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 6.0)
+
+#: Offered-load levels for the sweep. It stops at 4x deliberately. The workload
+#: is not a steady-state queueing model: arrivals continue at a fixed rate while
+#: starved transfers take proportionally longer to finish, so above capacity the
+#: active set grows over the run rather than settling. At 4x that backlog is
+#: still small next to the flows in flight over three thousand decisions; past
+#: it the run measures an accumulating queue more than it measures a policy, and
+#: the load level stops meaning what its label says. Documented in
+#: docs/limitations.md section 4c.
+DEFAULT_LOADS = (1.0, 1.5, 2.0, 2.5, 3.0, 4.0)
 
 
 # -- the capacity series -----------------------------------------------------
@@ -373,6 +382,17 @@ def main(argv: list[str] | None = None) -> int:
         },
     }
 
+    def checkpoint() -> None:
+        """Write what exists so far.
+
+        The grid takes tens of minutes and each arm is independent. Writing only
+        at the end means an interruption three arms in loses all three, which is
+        how the first attempt at this run was lost.
+        """
+        result["seconds"] = round(time.time() - started, 1)
+        (output / "result.json").write_text(json.dumps(result, indent=2, default=str))
+
+    checkpoint()
     if "policies" not in args.skip:
         print("policy sweep")
         rows, reference = arm_policies(bound, actual, args)
@@ -383,18 +403,22 @@ def main(argv: list[str] | None = None) -> int:
         for policy, run in reference.items():
             run.records.to_csv(output / f"flow_slots_{policy}.csv", index=False)
             run.flows.to_csv(output / f"flows_{policy}.csv", index=False)
+        checkpoint()
 
     if "capacity" not in args.skip:
         print("\ncapacity source arm")
         result["capacity_arm"] = arm_capacity(bound, point, actual, args)
+        checkpoint()
 
     if "ablation" not in args.skip:
         print("\nablation")
         result["ablation"] = arm_ablation(bound, actual, args)
+        checkpoint()
 
     if "channels" not in args.skip:
         print("\nchannel ablation")
         result["channels"] = arm_channels(bound, actual, args)
+        checkpoint()
 
     if "sensitivity" not in args.skip:
         print("\nweight sensitivity")
@@ -402,15 +426,15 @@ def main(argv: list[str] | None = None) -> int:
         violations = [r["critical_violation_allocated"] for r in result["sensitivity"]]
         print(f"  {len(violations)} draws, violation "
               f"{np.min(violations):.3f} to {np.max(violations):.3f}")
+        checkpoint()
 
     if "episode" not in args.skip:
         print("\ncase study traces")
         for name, table in arm_episode(bound, actual, args).items():
             table.to_csv(output / f"episode_{name}.csv", index=False)
 
-    result["seconds"] = round(time.time() - started, 1)
     frame.to_csv(output / "decisions.csv", index=False)
-    (output / "result.json").write_text(json.dumps(result, indent=2, default=str))
+    checkpoint()
     print(f"\nwrote {output / 'result.json'}  ({result['seconds']}s)")
     return 0
 
