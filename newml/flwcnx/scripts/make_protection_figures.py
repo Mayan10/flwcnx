@@ -75,6 +75,15 @@ def _read(run: Path) -> dict:
     return json.loads(path.read_text())
 
 
+def _reference_load(data: dict) -> float:
+    """The load the ablations and the case study ran at.
+
+    Read from the run's own arguments rather than taken as the median of the
+    sweep, because the sweep's median need not be one of the levels it visited.
+    """
+    return float(data.get("args", {}).get("reference_load", 2.0))
+
+
 def _frame(run: Path, name: str) -> pd.DataFrame | None:
     path = run / name
     return pd.read_csv(path) if path.exists() else None
@@ -95,64 +104,109 @@ def _aggregate(rows: list[dict], keys: list[str], value: str) -> pd.DataFrame:
 def fig_case_study(run: Path, out: Path) -> Path | None:
     """One critical transfer, under the policy in use today and under this one.
 
-    The argument for the whole layer in a single pair of panels. Both panels
-    replay an identical workload against an identical capacity series, so the
-    only thing that differs is what the allocator decided.
+    The argument for the whole layer. Both panels replay an identical workload
+    against an identical capacity series, so the only thing that differs
+    between them is what the allocator decided.
+
+    The rate plotted is what the allocator granted, which is what the allocator
+    controls. What the link then delivered is the subject of
+    `protection-calibration.png`, and separating the two is the point of
+    reporting both.
     """
     ours = _frame(run, "episode_protected.csv")
     naive = _frame(run, "episode_shed_largest.csv")
+    context = _frame(run, "episode_protected_slots.csv")
     if ours is None or naive is None:
         return None
 
-    # The focal flow: the longest lived critical transfer that is large enough
-    # to be the first thing a rate-based shaper reaches for.
-    critical = ours[ours["truly_critical"] & (ours["demand_mbps"] > 8.0)]
+    # The focal flow: the critical archetype the whole layer is about, if it is
+    # present, and otherwise the largest critical flow on the link. Either way
+    # it has to be the same flow in both panels.
+    shared = set(ours["flow_id"]) & set(naive["flow_id"])
+    critical = ours[ours["flow_id"].isin(shared) & ours["truly_critical"]
+                    & (ours["demand_mbps"] > 8.0)]
     if critical.empty:
         return None
-    focal = critical.groupby("flow_id").size().idxmax()
-    archetype = str(ours.loc[ours["flow_id"] == focal, "archetype"].iloc[0])
+    preferred = critical[critical["archetype"] == "pacs_image_push"]
+    pool = preferred if not preferred.empty else critical
+    # The longest lived instance, which is also the one that lived through the
+    # most congestion. That is the hard case for both policies rather than a
+    # flattering one, and it is chosen before either policy is looked at.
+    focal = pool.groupby("flow_id").size().idxmax()
+    archetype = str(pool.loc[pool["flow_id"] == focal, "archetype"].iloc[0])
+    label = archetype.replace("_", " ")
 
-    panels = [("throttle the largest first", naive), ("criticality-weighted, with floors", ours)]
-    fig, axes = plt.subplots(2, 1, figsize=(8.6, 6.4), sharex=True,
-                             gridspec_kw={"hspace": 0.28})
+    spans = [t.loc[t["flow_id"] == focal, "slot"] for t in (ours, naive)]
+    window = (int(min(s.min() for s in spans)), int(max(s.max() for s in spans)))
 
-    window = None
-    for ax, (title, table) in zip(axes, panels, strict=True):
+    fig, axes = plt.subplots(3, 1, figsize=(8.8, 7.4), sharex=True,
+                             gridspec_kw={"height_ratios": [1.0, 1.55, 1.55],
+                                          "hspace": 0.38})
+
+    # -- context: what the link could carry, and what the allocator divided.
+    top = axes[0]
+    if context is not None:
+        frame = context[context["slot"].between(*window)]
+        top.plot(frame["slot"], frame["realised_mbps"], linewidth=1.3,
+                 color=TEXT_SECONDARY, alpha=0.8, zorder=3, label="what the link carried")
+        top.plot(frame["slot"], frame["capacity_mbps"], linewidth=1.6, color=VIOLET,
+                 zorder=4, label="the calibrated bound the allocator divided")
+        # Right aligned above the axes: the panel title is left aligned there,
+        # and inside the axes the series fill the whole box.
+        top.legend(frameon=False, fontsize=8.5, labelcolor=TEXT_SECONDARY, ncol=2,
+                   loc="lower right", bbox_to_anchor=(1.0, 1.0))
+    _style(top, title="The link over this stretch", ylabel="Mbps")
+
+    panels = [(axes[1], "Throttling the largest flow first, which is what a rate-based "
+                        "shaper does", naive),
+              (axes[2], "Criticality-weighted, with protected floors", ours)]
+    ceiling = max(float(t.loc[t["flow_id"] == focal, "demand_mbps"].max())
+                  for _, _, t in panels) * 1.22
+
+    finished = {}
+    for ax, title, table in panels:
         flow = table[table["flow_id"] == focal].sort_values("slot")
-        if flow.empty:
-            return None
-        if window is None:
-            window = (int(flow["slot"].min()), int(flow["slot"].max()))
         slots = flow["slot"].to_numpy()
-        delivered = flow["delivered_mbps"].to_numpy()
+        granted = flow["granted_mbps"].to_numpy()
         floor = float(flow["floor_mbps"].median())
+        finished[title] = int(slots[-1])
 
-        others = (table[(table["flow_id"] != focal)
-                        & table["slot"].between(*window)]
-                  .groupby("slot")["delivered_mbps"].sum().reindex(slots, fill_value=0.0))
-        ax.fill_between(slots, 0, others.to_numpy(), color=GRID, alpha=0.85,
-                        linewidth=0, zorder=1, label="everything else on the link")
-        ax.plot(slots, delivered, linewidth=2.0, color=BLUE, zorder=4,
-                label=f"the {archetype.replace('_', ' ')}")
-        ax.axhline(floor, linestyle="--", linewidth=1.4, color=TEXT_SECONDARY,
-                   zorder=3, label="the rate below which it is useless")
+        ax.fill_between(slots, 0, granted, color=BLUE, alpha=0.18, linewidth=0, zorder=3)
+        ax.plot(slots, granted, linewidth=1.7, color=BLUE, zorder=4)
+        ax.axhline(floor, linestyle="--", linewidth=1.5, color=TEXT_SECONDARY, zorder=5)
 
-        starved = delivered < floor - 1e-9
-        ax.fill_between(slots, 0, np.maximum(delivered, 0), where=starved,
-                        color=ORANGE, alpha=0.30, linewidth=0, zorder=2)
+        # Starvation as a rug along the baseline rather than a full-height fill.
+        # A fill that covers the panel hides the series it is annotating.
+        starved = granted < floor - 1e-9
+        ax.fill_between(slots, 0, ceiling * 0.055, where=starved, color=ORANGE,
+                        alpha=0.85, linewidth=0, zorder=2)
         share = float(starved.mean())
-        _style(ax, title=title, ylabel="delivered Mbps")
-        ax.text(0.995, 0.93,
-                f"below its floor on {share:5.1%} of slots",
-                transform=ax.transAxes, ha="right", va="top", fontsize=9.5,
-                color=ORANGE if share > 0.05 else TEXT_SECONDARY,
-                bbox={"facecolor": SURFACE, "edgecolor": "none", "pad": 2.0})
+
+        ax.axvline(slots[-1], color=TEXT_PRIMARY, linewidth=1.2, zorder=6)
+        ax.annotate(f"done, slot {slots[-1]}", (slots[-1], ceiling * 0.93),
+                    textcoords="offset points", xytext=(-6, 0), ha="right",
+                    fontsize=9, color=TEXT_PRIMARY,
+                    bbox={"facecolor": SURFACE, "edgecolor": "none", "pad": 1.5})
+
+        _style(ax, title=title, ylabel="Mbps granted")
+        ax.set_ylim(0, ceiling)
+        ax.set_xlim(window[0] - 4, window[1] + 4)
+        ax.text(0.012, 0.90, f"below its floor on {share:.0%} of its slots",
+                transform=ax.transAxes, ha="left", va="top", fontsize=10,
+                color=ORANGE if share > 0.05 else TEXT_PRIMARY)
+        ax.text(window[1], floor, f"its floor, {floor:.1f} Mbps ", fontsize=8.5,
+                color=TEXT_SECONDARY, va="bottom", ha="right", style="italic")
 
     axes[-1].set_xlabel("decision slot", color=TEXT_SECONDARY, fontsize=10)
-    axes[0].legend(frameon=False, fontsize=9, labelcolor=TEXT_SECONDARY,
-                   loc="upper left", ncol=3, bbox_to_anchor=(0.0, -0.16))
-    fig.suptitle("The same transfer, under the shaper in use today and under this layer",
-                 x=0.005, ha="left", fontsize=13, color=TEXT_PRIMARY, y=1.005)
+    slower, faster = (finished[panels[0][1]] - window[0],
+                      finished[panels[1][1]] - window[0])
+    fig.suptitle(f"The same {label}, under the shaper in use today and under this layer",
+                 x=0.005, ha="left", fontsize=13.5, color=TEXT_PRIMARY, y=1.075)
+    fig.text(0.005, 1.025,
+             f"identical workload, identical link, identical seed. Orange marks the "
+             f"slots where the transfer was getting too little to be worth carrying; "
+             f"it completes in {faster} slots instead of {slower}.",
+             ha="left", fontsize=9.5, color=TEXT_SECONDARY)
     return _save(fig, out / "protection-case-study.png")
 
 
@@ -167,13 +221,20 @@ def fig_policy_sweep(run: Path, out: Path) -> Path | None:
     load the floors stop fitting and the oracle fails too. Either end on its
     own would be mistaken for the general case.
     """
-    data = _read(run).get("policies")
-    if not data:
+    data = _read(run)
+    rows = data.get("policies")
+    if not rows:
         return None
-    load = _aggregate(data, ["policy", "load_multiplier"], "critical_violation_allocated")
-    over = _aggregate(data, ["policy", "load_multiplier"], "oversubscription")
-    load = load.merge(over[["policy", "load_multiplier", "mean"]],
-                      on=["policy", "load_multiplier"], suffixes=("", "_over"))
+    load = _aggregate(rows, ["policy", "load_multiplier"], "critical_violation_allocated")
+    # Offered load over delivered capacity, computed from the archetype table
+    # rather than from each run's realised demand. A policy that throttles
+    # harder makes its elastic flows back off further, which lowers *its own*
+    # measured offered load: using that would give every policy a different x
+    # for the same workload and shift the lines sideways against each other.
+    nominal = sum(a["nominal_mbps"] * a["concurrency"]
+                  for a in data.get("workload_archetypes", []))
+    capacity = float(data.get("capacity_series", {}).get("realised_mean_mbps", 0.0)) or 1.0
+    load["mean_over"] = load["load_multiplier"] * nominal / capacity
 
     fig, ax = plt.subplots(figsize=(8.0, 5.0))
     oracle = load[load["policy"] == "oracle"].sort_values("load_multiplier")
@@ -224,16 +285,18 @@ def fig_cost(run: Path, out: Path) -> Path | None:
     score perfectly on the sweep above. The horizontal axis is what the elastic
     traffic pays for it.
     """
-    data = _read(run).get("policies")
-    if not data:
+    data = _read(run)
+    rows = data.get("policies")
+    if not rows:
         return None
-    frame = pd.DataFrame(data)
-    reference = frame["load_multiplier"].median()
+    reference = _reference_load(data)
+    frame = pd.DataFrame(rows)
     frame = frame[frame["load_multiplier"] == reference]
     if frame.empty:
         return None
 
-    fig, ax = plt.subplots(figsize=(7.8, 5.0))
+    fig, ax = plt.subplots(figsize=(8.4, 5.2))
+    points: list[tuple[float, float, str, str]] = []
     for policy, group in frame.groupby("policy"):
         x = float(group["completion_inflation_ordinary"].mean())
         y = float(group["critical_goodput_ratio"].mean())
@@ -243,15 +306,26 @@ def fig_cost(run: Path, out: Path) -> Path | None:
         colour = TEXT_SECONDARY if oracle else POLICY_COLOUR[policy]
         ax.scatter([x], [y], s=190, color=colour, zorder=4, edgecolor=SURFACE,
                    linewidth=2.0, marker="D" if oracle else "o")
+        points.append((x, y, policy, colour))
+
+    # Label on whichever side has room. Placing every label to the right runs
+    # the rightmost ones off the frame, and widening the axis to fit them
+    # leaves the points bunched in one corner.
+    midpoint = np.median([p[0] for p in points])
+    for x, y, policy, _ in points:
+        right = x <= midpoint
         ax.annotate(f"{POLICY_LABEL[policy]}\n{y:.0%} of critical demand delivered",
-                    (x, y), textcoords="offset points", xytext=(11, 6), fontsize=9,
+                    (x, y), textcoords="offset points",
+                    xytext=(12 if right else -12, 6), fontsize=9,
+                    ha="left" if right else "right",
                     color=TEXT_SECONDARY, va="center")
 
     _style(ax, title="Protecting critical traffic is paid for by everything else",
            subtitle=f"at {reference:g}x offered load; up and to the left is better",
            xlabel="how much longer an ordinary transfer takes than on an idle link",
            ylabel="share of critical demand delivered")
-    ax.set_xlim(right=ax.get_xlim()[1] + (ax.get_xlim()[1] - ax.get_xlim()[0]) * 0.55)
+    lo, hi = ax.get_xlim()
+    ax.set_xlim(lo - (hi - lo) * 0.30, hi + (hi - lo) * 0.30)
     return _save(fig, out / "protection-cost.png")
 
 
@@ -403,11 +477,14 @@ def fig_ablation(run: Path, out: Path) -> Path | None:
         ax.axvline(0.0, color=TEXT_SECONDARY, linewidth=1.3, zorder=5)
         ax.set_yticks(range(len(frame)))
         ax.set_yticklabels(labels, fontsize=9)
-        for bar, value in zip(bars, delta, strict=True):
-            offset = 4 if value >= 0 else -4
-            ax.annotate(f"{value:+.3f}",
-                        (value, bar.get_y() + bar.get_height() / 2),
-                        textcoords="offset points", xytext=(offset, 0), fontsize=8.5,
+        # Past the error bar, not on top of it: the whisker and the value label
+        # want the same few pixels at the end of every bar.
+        errors = frame["std"].to_numpy()
+        for bar, value, error in zip(bars, delta, errors, strict=True):
+            sign = 1.0 if value >= 0 else -1.0
+            tip = value + sign * (error if np.isfinite(error) else 0.0)
+            ax.annotate(f"{value:+.3f}", (tip, bar.get_y() + bar.get_height() / 2),
+                        textcoords="offset points", xytext=(6 * sign, 0), fontsize=8.5,
                         ha="left" if value >= 0 else "right", va="center",
                         color=TEXT_SECONDARY)
         _style(ax, title=title, subtitle=subtitle,
@@ -440,8 +517,8 @@ def fig_calibration_coupling(run: Path, out: Path) -> Path | None:
     rows, series = data.get("capacity_arm"), data.get("capacity_series", {})
     if not rows:
         return None
+    reference = _reference_load(data)
     frame = pd.DataFrame(rows)
-    reference = frame["load_multiplier"].median()
     frame = frame[frame["load_multiplier"] == reference]
 
     sources = ["bound", "point_forecast"]
@@ -450,8 +527,8 @@ def fig_calibration_coupling(run: Path, out: Path) -> Path | None:
     metrics = [("critical_violation_allocated", "what the allocator wrote", BLUE),
                ("critical_violation_delivered", "what the link delivered", ORANGE)]
 
-    fig, ax = plt.subplots(figsize=(7.6, 4.9))
-    width, gap = 0.34, 0.02
+    fig, ax = plt.subplots(figsize=(7.0, 4.7))
+    width, gap = 0.22, 0.02
     for index, (column, label, colour) in enumerate(metrics):
         values = [float(frame[frame["capacity_source"] == s][column].mean())
                   for s in sources]
@@ -462,12 +539,15 @@ def fig_calibration_coupling(run: Path, out: Path) -> Path | None:
         ax.bar(positions, values, width=width, color=colour, zorder=3, label=label)
         ax.errorbar(positions, values, yerr=errors, fmt="none", ecolor=TEXT_SECONDARY,
                     elinewidth=1.0, capsize=3, zorder=5)
-        for x, value in zip(positions, values, strict=True):
-            ax.annotate(f"{value:.3f}", (x, value), textcoords="offset points",
-                        xytext=(0, 4), ha="center", fontsize=9, color=TEXT_SECONDARY)
+        for x, value, error in zip(positions, values, errors, strict=True):
+            # Above the whisker, not through it.
+            top = value + (error if np.isfinite(error) else 0.0)
+            ax.annotate(f"{value:.3f}", (x, top), textcoords="offset points",
+                        xytext=(0, 5), ha="center", fontsize=9, color=TEXT_SECONDARY)
 
     ax.set_xticks(range(len(sources)))
     ax.set_xticklabels([names[s] for s in sources], fontsize=9.5)
+    ax.set_xlim(-0.55, len(sources) - 0.45)
     _style(ax, title="A floor written against a forecast the link misses is not a floor",
            subtitle=f"at {reference:g}x offered load; the allocator honours every "
                     "feasible floor in both arms",
@@ -486,6 +566,12 @@ def fig_evidence(run: Path, out: Path) -> Path | None:
     drove it is not one they can act on. This is also the check that the layer
     protects a large undeclared transfer for the right reason rather than by
     coincidence.
+
+    Drawn as a diverging heat map rather than a stacked bar. The quantity is a
+    signed magnitude over two dimensions, channel and time, and seven stacked
+    categorical hues is past the point where any palette separates safely under
+    colour vision deficiency. Two poles and a neutral midpoint carry the sign,
+    which is what the reader needs.
     """
     rows = _frame(run, "episode_protected.csv")
     if rows is None:
@@ -502,39 +588,56 @@ def fig_evidence(run: Path, out: Path) -> Path | None:
     flow = rows[rows["flow_id"] == focal].sort_values("slot")
     archetype = str(flow["archetype"].iloc[0]).replace("_", " ")
 
-    fig, (top, bottom) = plt.subplots(2, 1, figsize=(8.6, 6.2), sharex=True,
-                                      gridspec_kw={"height_ratios": [3, 2],
-                                                   "hspace": 0.2})
+    # Ordered by how much each channel actually moved this decision, so the
+    # rows nearest the axis are the ones that decided it.
+    order = sorted(weighted, key=lambda c: float(flow[c].abs().mean()))
+    matrix = np.vstack([flow[c].to_numpy() for c in order])
     slots = flow["slot"].to_numpy()
-    # Order by mean absolute contribution so the channels that matter are the
-    # ones nearest the axis and the legend reads in that order too.
-    order = sorted(weighted, key=lambda c: -float(flow[c].abs().mean()))
-    palette = [BLUE, ORANGE, AQUA, VIOLET, TEXT_SECONDARY, GRID, "#8a6d3b"]
+    span = float(np.abs(matrix).max()) or 1.0
 
-    positive = np.zeros(len(flow))
-    negative = np.zeros(len(flow))
-    for column, colour in zip(order, palette, strict=False):
-        values = flow[column].to_numpy()
-        up, down = np.clip(values, 0, None), np.clip(values, None, 0)
-        top.bar(slots, up, bottom=positive, width=1.0, color=colour, linewidth=0,
-                zorder=3, label=column[2:].replace("_", " "))
-        top.bar(slots, down, bottom=negative, width=1.0, color=colour, linewidth=0,
-                zorder=3)
-        positive += up
-        negative += down
-    top.axhline(0.0, color=TEXT_PRIMARY, linewidth=1.0, zorder=5)
-    _style(top, title=f"Why the layer protected this {archetype}",
-           subtitle="weighted evidence per channel, in log-odds; the flow declares "
-                    "itself standard, so none of this comes from its declaration",
-           ylabel="contribution to log-odds")
-    top.legend(frameon=False, fontsize=8.5, labelcolor=TEXT_SECONDARY, ncol=4,
-               loc="upper left", bbox_to_anchor=(0.0, -0.06))
+    # Diverging: two hues from the validated set, with the surface as the
+    # neutral midpoint. Never a hue at the middle of a diverging ramp.
+    ramp = matplotlib.colors.LinearSegmentedColormap.from_list(
+        "flwcnx-diverging", [ORANGE, SURFACE, BLUE])
 
-    bottom.plot(slots, flow["criticality"].to_numpy(), linewidth=2.2, color=BLUE,
-                zorder=4)
-    bottom.axhline(0.60, linestyle="--", linewidth=1.4, color=TEXT_SECONDARY, zorder=3)
-    bottom.set_ylim(0, 1)
-    _style(bottom, ylabel="criticality", xlabel="decision slot")
+    fig, (heat, line) = plt.subplots(2, 1, figsize=(9.0, 5.8), sharex=True,
+                                     gridspec_kw={"height_ratios": [2.2, 1.0],
+                                                  "hspace": 0.16})
+    # Cell edges, not centres: flat shading wants one more boundary than cell
+    # in each direction.
+    edges = np.append(slots, slots[-1] + (slots[-1] - slots[-2] if slots.size > 1 else 1))
+    mesh = heat.pcolormesh(edges, np.arange(len(order) + 1), matrix, cmap=ramp,
+                           vmin=-span, vmax=span, shading="flat")
+    heat.set_yticks(np.arange(len(order)) + 0.5)
+    heat.set_yticklabels([c[2:].replace("_", " ") for c in order], fontsize=9.5)
+    heat.tick_params(colors=TEXT_SECONDARY, labelsize=9)
+    for side in ("top", "right", "left", "bottom"):
+        heat.spines[side].set_visible(False)
+    heat.set_title(f"Why the layer protected this {archetype}", loc="left",
+                   color=TEXT_PRIMARY, fontsize=12.5, pad=24, fontweight="medium")
+    heat.text(0, 1.015, "weighted evidence per channel, in log-odds. The flow declares "
+                        "itself standard, so none of this is its declaration.",
+              transform=heat.transAxes, fontsize=9.5, color=TEXT_SECONDARY, va="bottom")
+
+    bar = fig.colorbar(mesh, ax=heat, pad=0.012, fraction=0.035)
+    bar.outline.set_visible(False)
+    bar.ax.tick_params(colors=TEXT_SECONDARY, labelsize=8.5)
+    bar.set_label("argues for shedding        argues for protecting",
+                  color=TEXT_SECONDARY, fontsize=8.5)
+
+    criticality = flow["criticality"].to_numpy()
+    line.plot(slots, criticality, linewidth=2.2, color=BLUE, zorder=4)
+    line.axhline(0.60, linestyle="--", linewidth=1.4, color=TEXT_SECONDARY, zorder=3)
+    line.fill_between(slots, 0.60, criticality, where=criticality >= 0.60,
+                      color=BLUE, alpha=0.16, linewidth=0, zorder=2)
+    line.set_ylim(0, 1)
+    _style(line, ylabel="criticality", xlabel="decision slot")
+    line.text(slots[0], 0.615, " protection threshold", fontsize=8.5,
+              color=TEXT_SECONDARY, va="bottom", style="italic")
+    # The colour bar steals width from the heat map only; match the line axes
+    # to it so the two share an x position as well as an x scale.
+    line.set_position([heat.get_position().x0, line.get_position().y0,
+                       heat.get_position().width, line.get_position().height])
     return _save(fig, out / "protection-evidence.png")
 
 
