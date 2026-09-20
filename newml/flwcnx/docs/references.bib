@@ -377,3 +377,118 @@
   note        = {AIAA 2006-6753. The SGP4 reference implementation.},
   year        = {2006}
 }
+
+% -- The protection layer -----------------------------------------------------
+% Every mechanism in flwcnx/decide/protect.py and flwcnx/decide/flows.py is
+% published. What is specific to this project is the coupling: the allocator
+% divides a calibrated bound rather than a point forecast. These entries are
+% the provenance for that claim.
+
+% Weighted max-min fairness and progressive filling, which is the allocation
+% rule in flwcnx/decide/protect.py, section 6.5.2.
+@book{bertsekas1992data,
+  author    = {Bertsekas, Dimitri P. and Gallager, Robert G.},
+  title     = {Data Networks},
+  edition   = {2},
+  publisher = {Prentice Hall},
+  year      = {1992}
+}
+
+% Fair queueing. The equal-share baseline is this policy.
+@inproceedings{demers1989analysis,
+  author    = {Demers, Alan and Keshav, Srinivasan and Shenker, Scott},
+  title     = {Analysis and Simulation of a Fair Queueing Algorithm},
+  booktitle = {SIGCOMM},
+  year      = {1989}
+}
+
+% Weighted fair queueing with per-flow guarantees, which is what a protected
+% floor is when the floors are jointly feasible.
+@article{parekh1993generalized,
+  author  = {Parekh, Abhay K. and Gallager, Robert G.},
+  title   = {A Generalized Processor Sharing Approach to Flow Control in
+             Integrated Services Networks: The Single-Node Case},
+  journal = {IEEE/ACM Transactions on Networking},
+  volume  = {1},
+  number  = {3},
+  pages   = {344--357},
+  year    = {1993}
+}
+
+% Differentiated services. The by_class baseline, and the reason a declaration
+% is treated as a prior rather than a verdict: DSCP marks are routinely
+% rewritten at administrative boundaries precisely because they are not trusted.
+@techreport{nichols1998diffserv,
+  author      = {Nichols, Kathleen and Blake, Steven and Baker, Fred and
+                 Black, David},
+  title       = {Definition of the Differentiated Services Field (DS Field) in
+                 the IPv4 and IPv6 Headers},
+  institution = {IETF},
+  number      = {RFC 2474},
+  year        = {1998}
+}
+
+% Deadline-driven flow scheduling. The deadline channel in
+% flwcnx/decide/flows.py is this idea used as evidence about criticality rather
+% than as the scheduling objective itself.
+@inproceedings{wilson2011better,
+  author    = {Wilson, Christo and Ballani, Hitesh and Karagiannis, Thomas and
+               Rowstron, Ant},
+  title     = {Better Never than Late: Meeting Deadlines in Datacenter Networks},
+  booktitle = {SIGCOMM},
+  year      = {2011}
+}
+
+@inproceedings{hong2012finishing,
+  author    = {Hong, Chi-Yao and Caesar, Matthew and Godfrey, P. Brighten},
+  title     = {Finishing Flows Quickly with Preemptive Scheduling},
+  booktitle = {SIGCOMM},
+  year      = {2012}
+}
+
+% Deadline-aware scheduling where the deadlines are soft and the objective is
+% utility rather than a hard admission decision, which is the regime this layer
+% is in.
+@inproceedings{chen2016karuna,
+  author    = {Chen, Li and Chen, Kai and Zhu, Wei and Yu, Minlan and
+               Chen, Kai and Bai, Wei},
+  title     = {Scheduling Mix-flows in Commodity Datacenters with Karuna},
+  booktitle = {SIGCOMM},
+  year      = {2016}
+}
+
+% Jain's index, used in flwcnx/eval/protection.py over delivered-over-demanded
+% within the class the layer claims to treat alike.
+@techreport{jain1984quantitative,
+  author      = {Jain, Rajendra K. and Chiu, Dah-Ming W. and Hawe, William R.},
+  title       = {A Quantitative Measure of Fairness and Discrimination for
+                 Resource Allocation in Shared Computer Systems},
+  institution = {Digital Equipment Corporation},
+  number      = {DEC-TR-301},
+  year        = {1984}
+}
+
+% Sequential evidence accumulation in log-odds, which is the form of the
+% criticality update in flwcnx/decide/flows.py.
+@article{wald1945sequential,
+  author  = {Wald, Abraham},
+  title   = {Sequential Tests of Statistical Hypotheses},
+  journal = {The Annals of Mathematical Statistics},
+  volume  = {16},
+  number  = {2},
+  pages   = {117--186},
+  year    = {1945}
+}
+
+% Costly signalling: a claim that runs against the claimant's own interest is
+% more credible than one that serves it. The argument for believing a
+% declaration of BACKGROUND in full and discounting a declaration of CLINICAL.
+@article{spence1973job,
+  author  = {Spence, Michael},
+  title   = {Job Market Signaling},
+  journal = {The Quarterly Journal of Economics},
+  volume  = {87},
+  number  = {3},
+  pages   = {355--374},
+  year    = {1973}
+}
