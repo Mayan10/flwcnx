@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FlowConX — Network Intelligence Platform",
+  title: "Thalweg — Network Intelligence Platform",
   description:
-    "Real-time network flow intelligence, classification & observability. FlowConX processes network and satellite traffic data using ML-powered classification.",
+    "Real-time network flow intelligence, classification & observability. Thalweg processes network and satellite traffic data using ML-powered classification.",
   keywords: [
     "network intelligence",
     "traffic classification",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     "ML classification",
   ],
   openGraph: {
-    title: "FlowConX — Network Intelligence Platform",
+    title: "Thalweg — Network Intelligence Platform",
     description:
       "Real-time network flow intelligence, classification & observability.",
     type: "website",

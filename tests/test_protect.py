@@ -6,8 +6,8 @@ import random
 
 import pytest
 
-from flwcnx.decide.flows import FlowClass, FlowObservation, FlowSpec
-from flwcnx.decide.protect import (
+from thalweg.decide.flows import FlowClass, FlowObservation, FlowSpec
+from thalweg.decide.protect import (
     POLICIES,
     AllocationResult,
     FlowDemand,

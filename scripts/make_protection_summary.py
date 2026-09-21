@@ -144,7 +144,7 @@ def build(result: dict, run: Path) -> str:
         "carries a flow table, process attribution or a user-attention signal, so the "
         "capacity series below is the calibrated bound and the realised throughput from a "
         "trained pipeline over the real traces, and the flows contending for it come from "
-        "`flwcnx/eval/workload.py`. Every number here is a number about that workload.\n")
+        "`thalweg/eval/workload.py`. Every number here is a number about that workload.\n")
     parts.append(
         f"| capacity series | |\n|---|---|\n"
         f"| decisions | {series.get('n_slots', 0):,} |\n"

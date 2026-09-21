@@ -12,7 +12,7 @@ import json
 import numpy as np
 import pytest
 
-from flwcnx.config import (
+from thalweg.config import (
     CalibrationConfig,
     DataConfig,
     DecisionConfig,
@@ -24,8 +24,8 @@ from flwcnx.config import (
     resolve_device,
     seed_everything,
 )
-from flwcnx.eval.runner import comparison_table, prepare, risk_table, run_experiment
-from flwcnx.ingest.synthetic import SyntheticSource, SyntheticSpec
+from thalweg.eval.runner import comparison_table, prepare, risk_table, run_experiment
+from thalweg.ingest.synthetic import SyntheticSource, SyntheticSpec
 
 
 @pytest.fixture(scope="module")

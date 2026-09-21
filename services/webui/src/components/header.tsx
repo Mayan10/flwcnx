@@ -22,7 +22,7 @@ export function Header() {
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
           <span className="text-[15px] font-semibold tracking-tight" style={{ color: "var(--fg)" }}>
-            FlowConX
+            Thalweg
           </span>
         </div>
         

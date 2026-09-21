@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from flwcnx.eval import figures
+from thalweg.eval import figures
 
 #: The methods the headline figure compares, in argument order. Restricted on
 #: purpose: the motivation figure has to be readable, and the whole argument is

@@ -28,7 +28,7 @@ import argparse
 import json
 from pathlib import Path
 
-from flwcnx.config import (
+from thalweg.config import (
     CalibrationConfig,
     DecisionConfig,
     ExperimentConfig,
@@ -37,8 +37,8 @@ from flwcnx.config import (
     SplitConfig,
     StarNetConfig,
 )
-from flwcnx.eval.runner import comparison_table, risk_table, run_experiment
-from flwcnx.ingest.wetlinks import SITE_COORDINATES, WetLinksConfig, WetLinksSource
+from thalweg.eval.runner import comparison_table, risk_table, run_experiment
+from thalweg.ingest.wetlinks import SITE_COORDINATES, WetLinksConfig, WetLinksSource
 
 STATUS_GRANULARITIES = ["global", "obstruction", "obstruction+hour", "full"]
 SECONDS_GRANULARITIES = ["global", "phase", "candidates", "level",
@@ -51,7 +51,7 @@ def build_source(args, root: Path, seconds: bool):
         return WetLinksSource(WetLinksConfig(root=root, site=args.site,
                                              target=args.target))
 
-    from flwcnx.ingest.wetlinks_full import (
+    from thalweg.ingest.wetlinks_full import (
         WetLinksFullConfig,
         WetLinksSecondsSource,
         attach_geometry,

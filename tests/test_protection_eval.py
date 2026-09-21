@@ -7,15 +7,15 @@ import math
 import numpy as np
 import pytest
 
-from flwcnx.decide.flows import FlowClass
-from flwcnx.eval.protection import (
+from thalweg.decide.flows import FlowClass
+from thalweg.eval.protection import (
     ORACLE,
     average_precision,
     jain_index,
     run_policy,
     sweep_load,
 )
-from flwcnx.eval.workload import ARCHETYPES, FlowWorkload, WorkloadSpec, oracle_view
+from thalweg.eval.workload import ARCHETYPES, FlowWorkload, WorkloadSpec, oracle_view
 
 CAPACITY = np.full(120, 60.0)
 REALISED = np.full(120, 55.0)

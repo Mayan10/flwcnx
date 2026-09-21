@@ -27,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 
-from flwcnx.config import (
+from thalweg.config import (
     CalibrationConfig,
     DecisionConfig,
     ExperimentConfig,
@@ -36,16 +36,16 @@ from flwcnx.config import (
     SplitConfig,
     StarNetConfig,
 )
-from flwcnx.eval.runner import comparison_table, risk_table, run_experiment
-from flwcnx.eval.splits import check_no_leak, leave_one_location_out
-from flwcnx.ingest.wetlinks import SITE_COORDINATES
-from flwcnx.ingest.wetlinks_full import (
+from thalweg.eval.runner import comparison_table, risk_table, run_experiment
+from thalweg.eval.splits import check_no_leak, leave_one_location_out
+from thalweg.ingest.wetlinks import SITE_COORDINATES
+from thalweg.ingest.wetlinks_full import (
     WetLinksFullConfig,
     WetLinksSecondsSource,
     attach_geometry,
     load_cached_elements,
 )
-from flwcnx.state.features import (
+from thalweg.state.features import (
     Standardizer,
     build_features,
     make_sequences,
@@ -193,7 +193,7 @@ def _held_out_split(target, calibration, test):
     the only ordering that needs checking is calibration before test within the
     held out site.
     """
-    from flwcnx.eval.splits import Split
+    from thalweg.eval.splits import Split
 
     order = np.argsort(target.origin_time, kind="stable")
     n_cal, n_test = len(calibration), len(test)

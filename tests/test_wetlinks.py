@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.config import LATENCY_COL, NORMALIZED_COLUMNS, TARGET_COL
-from flwcnx.ingest.wetlinks import (
+from thalweg.config import LATENCY_COL, NORMALIZED_COLUMNS, TARGET_COL
+from thalweg.ingest.wetlinks import (
     SITE_COORDINATES,
     WetLinksConfig,
     WetLinksSource,

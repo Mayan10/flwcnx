@@ -22,7 +22,7 @@ more to stay readable.
 
 ```bash
 python -m pip install -e ".[api]"          # once
-python -m flwcnx.api.server --mode synthetic --port 8010
+python -m thalweg.api.server --mode synthetic --port 8010
 ```
 
 Wait for the log line saying the pipeline is ready, or check it:
@@ -38,7 +38,7 @@ curl -s localhost:8010/api/ml/status
 ```bash
 cd tui
 cargo build --release                      # once, takes a few minutes
-./target/release/flowconx
+./target/release/thalweg
 ```
 
 Press **`m`** for the ML dashboard. Keys: `h` home, `k` login, `m` dashboard,
@@ -104,7 +104,7 @@ Expect a panel to ask, so say it first:
 If `data/starnet/` is populated, the same demo runs on real measurements:
 
 ```bash
-python -m flwcnx.api.server --mode real --location canada --port 8010
+python -m thalweg.api.server --mode real --location canada --port 8010
 ```
 
 Training takes longer. Everything else is identical.

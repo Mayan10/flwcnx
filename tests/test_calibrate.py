@@ -11,12 +11,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.calibrate.bgcfqs import BGCFQS, bgcfqs_on_residuals
-from flwcnx.calibrate.conformal import conformal_rank, fit_conformal
-from flwcnx.calibrate.regime_cal import RegimeCalibrator, global_calibrator
-from flwcnx.config import BGCFQSConfig, CalibrationConfig, RegimeConfig
-from flwcnx.eval.metrics import conditional_metrics, over_rate, worst_regime_over_rate
-from flwcnx.state.regime import RegimeAssigner
+from thalweg.calibrate.bgcfqs import BGCFQS, bgcfqs_on_residuals
+from thalweg.calibrate.conformal import conformal_rank, fit_conformal
+from thalweg.calibrate.regime_cal import RegimeCalibrator, global_calibrator
+from thalweg.config import BGCFQSConfig, CalibrationConfig, RegimeConfig
+from thalweg.eval.metrics import conditional_metrics, over_rate, worst_regime_over_rate
+from thalweg.state.regime import RegimeAssigner
 
 
 @pytest.mark.parametrize("epsilon", [0.05, 0.15, 0.35])
@@ -322,7 +322,7 @@ def test_regime_layer_improves_conditional_risk_on_latency():
 def test_latency_risk_slice_selects_the_high_tail():
     """Slicing the low tail on a latency target would report the easy samples
     as the hard case, which is exactly the kind of error that looks like a win."""
-    from flwcnx.eval.metrics import risk_slice_mask
+    from thalweg.eval.metrics import risk_slice_mask
 
     actual = np.arange(1000, dtype=float)
     high = risk_slice_mask(actual, 0.10, direction="upper")

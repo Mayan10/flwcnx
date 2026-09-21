@@ -33,9 +33,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
-from flwcnx.calibrate.conformal import fit_conformal
-from flwcnx.config import (
+from thalweg.calibrate.adaptive import AdaptiveRegimeCalibrator
+from thalweg.calibrate.conformal import fit_conformal
+from thalweg.config import (
     CalibrationConfig,
     DataConfig,
     ExperimentConfig,
@@ -44,22 +44,22 @@ from flwcnx.config import (
     SplitConfig,
     StarNetConfig,
 )
-from flwcnx.decide.sla import (
+from thalweg.decide.sla import (
     ServiceLevelAgreement,
     break_even_credit_ratio,
     evaluate_policy,
 )
-from flwcnx.eval.runner import build_backbone, prepare, resolve_device
-from flwcnx.forecast.train import train_model
-from flwcnx.ingest.replay import ReplaySource
-from flwcnx.state.latency import (
+from thalweg.eval.runner import build_backbone, prepare, resolve_device
+from thalweg.forecast.train import train_model
+from thalweg.ingest.replay import ReplaySource
+from thalweg.state.latency import (
     DEFAULT_LATENCY_THRESHOLD_MS,
     degraded_from_bound,
     label_periods,
     spike_metrics,
 )
-from flwcnx.state.phase import recover_phase
-from flwcnx.state.regime import RegimeAssigner
+from thalweg.state.phase import recover_phase
+from thalweg.state.regime import RegimeAssigner
 
 LOCATIONS = ("usa", "germany", "canada")
 

@@ -24,7 +24,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     // Left — brand mark plus the active screen breadcrumb.
     let left = Line::from(vec![
         Span::raw(" "),
-        Span::styled("FlowConX", theme::brand()),
+        Span::styled("Thalweg", theme::brand()),
         Span::styled("  ▸  ", theme::text_ghost()),
         Span::styled(app.current_screen.title(), theme::fg_bold(theme::FG_PRIMARY)),
     ]);

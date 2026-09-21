@@ -16,7 +16,7 @@ import argparse
 import sys
 from datetime import datetime, timedelta
 
-from flwcnx.ingest.spacetrack import SpaceTrackClient, SpaceTrackError
+from thalweg.ingest.spacetrack import SpaceTrackClient, SpaceTrackError
 
 
 def main(argv: list[str] | None = None) -> int:

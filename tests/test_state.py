@@ -6,18 +6,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.config import FEATURE_CLASSES, FEATURE_COLUMNS, PERIOD_SECONDS, RegimeConfig
-from flwcnx.ingest.synthetic import SyntheticSpec, generate_frame
-from flwcnx.state.features import REGIME_COVARIATES, WINDOW_COVARIATES, make_sequences
-from flwcnx.state.phase import (
+from thalweg.config import FEATURE_CLASSES, FEATURE_COLUMNS, PERIOD_SECONDS, RegimeConfig
+from thalweg.ingest.synthetic import SyntheticSpec, generate_frame
+from thalweg.state.features import REGIME_COVARIATES, WINDOW_COVARIATES, make_sequences
+from thalweg.state.phase import (
     FIXED_PHASE_OFFSET,
     assign_phase,
     boundary_mask,
     classify_periods,
     recover_phase,
 )
-from flwcnx.state.regime import RegimeAssigner, build_fallback_map
-from flwcnx.state.satellite import (
+from thalweg.state.regime import RegimeAssigner, build_fallback_map
+from thalweg.state.satellite import (
     SatelliteEncoder,
     angular_difference,
     dtw_distance,
@@ -237,7 +237,7 @@ def test_window_covariates_summarise_the_lookback_not_the_horizon(sequences):
 def test_regime_covariates_are_read_at_the_forecast_origin(feature_frame):
     """Not from the horizon. A regime that peeked would flatter the calibration."""
     frame, _, _ = feature_frame
-    from flwcnx.config import FeatureConfig
+    from thalweg.config import FeatureConfig
 
     built = make_sequences(frame, config=FeatureConfig(lookback=30, horizon=5, stride=1))
     single_segment = frame[frame["segment"] == frame["segment"].iloc[0]].reset_index(drop=True)
@@ -254,7 +254,7 @@ def test_regime_covariates_are_read_at_the_forecast_origin(feature_frame):
 
 
 def test_windows_shorter_than_lookback_plus_horizon_raise(feature_frame):
-    from flwcnx.config import FeatureConfig
+    from thalweg.config import FeatureConfig
 
     frame, _, _ = feature_frame
     with pytest.raises(ValueError, match="no window"):

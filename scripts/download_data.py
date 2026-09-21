@@ -54,7 +54,7 @@ def starnet(dest: Path) -> int:
 
     print("\nAfterwards, verify the loader against the published statistics:\n")
     print(f"  python scripts/download_data.py --inspect {dest}/usa")
-    print("  python -c \"from flwcnx.ingest import ReplaySource; "
+    print("  python -c \"from thalweg.ingest import ReplaySource; "
           "import json; print(json.dumps(ReplaySource(location='usa')"
           ".verify_against_published(), indent=2))\"")
     return 0
@@ -148,7 +148,7 @@ def horizon(dest: Path) -> int:
 
 def inspect(path: Path) -> int:
     """Report how a directory of traces would be mapped. Run this first."""
-    from flwcnx.ingest.replay import inspect_schema
+    from thalweg.ingest.replay import inspect_schema
 
     candidates: list[Path] = []
     if path.is_file():

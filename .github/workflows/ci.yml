@@ -36,7 +36,7 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Lint
-        run: ruff check flwcnx scripts tests
+        run: ruff check thalweg scripts tests
 
       - name: Test
         # Synthetic fixtures only. No dataset is downloaded in CI, and none of

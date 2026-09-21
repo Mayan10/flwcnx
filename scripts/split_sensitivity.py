@@ -31,12 +31,12 @@ from pathlib import Path
 
 import numpy as np
 
-from flwcnx.calibrate.bgcfqs import bgcfqs_on_residuals
-from flwcnx.config import FEATURE_COLUMNS, BGCFQSConfig, DataConfig, FeatureConfig
-from flwcnx.eval.metrics import conditional_metrics
-from flwcnx.forecast.baselines import XGBoostForecaster
-from flwcnx.ingest.replay import ReplaySource
-from flwcnx.state.features import build_features, make_sequences
+from thalweg.calibrate.bgcfqs import bgcfqs_on_residuals
+from thalweg.config import FEATURE_COLUMNS, BGCFQSConfig, DataConfig, FeatureConfig
+from thalweg.eval.metrics import conditional_metrics
+from thalweg.forecast.baselines import XGBoostForecaster
+from thalweg.ingest.replay import ReplaySource
+from thalweg.state.features import build_features, make_sequences
 
 ALIAS = {"usa": "CHI", "germany": "OSN", "canada": "VIC"}
 

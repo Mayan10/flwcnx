@@ -1,6 +1,6 @@
 //! ML Monitor — real-time throughput forecast and risk-control dashboard.
 //!
-//! This screen visualises the live output of the `flwcnx` ML pipeline:
+//! This screen visualises the live output of the `thalweg` ML pipeline:
 //! the actual throughput, the point forecast, the risk-calibrated safe bound,
 //! the admission control decisions, and congestion alerts.
 

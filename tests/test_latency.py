@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.state.latency import (
+from thalweg.state.latency import (
     DEFAULT_LATENCY_THRESHOLD_MS,
     average_precision,
     degraded_from_bound,

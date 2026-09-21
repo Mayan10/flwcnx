@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.config import NORMALIZED_COLUMNS, TARGET_COL, TIME_COL
-from flwcnx.ingest.base import count_handovers, segment_frame, validate_frame
-from flwcnx.ingest.replay import map_columns, normalize_frame
-from flwcnx.ingest.synthetic import SyntheticSpec
+from thalweg.config import NORMALIZED_COLUMNS, TARGET_COL, TIME_COL
+from thalweg.ingest.base import count_handovers, segment_frame, validate_frame
+from thalweg.ingest.replay import map_columns, normalize_frame
+from thalweg.ingest.synthetic import SyntheticSpec
 
 
 def test_normalized_frame_has_every_contract_column(raw_frame):
@@ -90,7 +90,7 @@ def test_epoch_seconds_are_parsed():
 
 
 def test_windows_never_cross_a_segment_boundary():
-    from flwcnx.ingest.synthetic import SyntheticSource
+    from thalweg.ingest.synthetic import SyntheticSource
 
     source = SyntheticSource(SyntheticSpec(n_seconds=3000, gap_every=500, gap_length=40))
     for window in source.iter_windows(30, stride=7):
@@ -100,7 +100,7 @@ def test_windows_never_cross_a_segment_boundary():
 
 
 def test_synthetic_source_reports_sane_statistics():
-    from flwcnx.ingest.synthetic import SyntheticSource
+    from thalweg.ingest.synthetic import SyntheticSource
 
     described = SyntheticSource(SyntheticSpec(n_seconds=3000)).describe()
     assert described["samples"] == 3000

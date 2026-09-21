@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
-from flwcnx.config import CalibrationConfig, DecisionConfig, RegimeConfig
-from flwcnx.demo import DemoEngine, records_to_frame
-from flwcnx.state.regime import RegimeAssigner
+from thalweg.calibrate.adaptive import AdaptiveRegimeCalibrator
+from thalweg.config import CalibrationConfig, DecisionConfig, RegimeConfig
+from thalweg.demo import DemoEngine, records_to_frame
+from thalweg.state.regime import RegimeAssigner
 
 EPS = 0.35
 

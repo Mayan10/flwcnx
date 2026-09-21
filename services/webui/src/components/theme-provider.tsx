@@ -24,7 +24,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    const stored = localStorage.getItem("flowconx-theme") as Theme | null;
+    const stored = localStorage.getItem("thalweg-theme") as Theme | null;
     if (stored) {
       setTheme(stored);
     } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
@@ -35,7 +35,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (mounted) {
       document.documentElement.setAttribute("data-theme", theme);
-      localStorage.setItem("flowconx-theme", theme);
+      localStorage.setItem("thalweg-theme", theme);
     }
   }, [theme, mounted]);
 

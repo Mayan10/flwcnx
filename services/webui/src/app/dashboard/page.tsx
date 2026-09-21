@@ -5,7 +5,7 @@
  *
  * The monitor mirrors the terminal UI's ML screen panel for panel (connection,
  * risk rate, safe bound, dropped, congestion, the throughput chart, covariates
- * and session counts), fed by the same WebSocket from the flwcnx ML API, so a
+ * and session counts), fed by the same WebSocket from the thalweg ML API, so a
  * number read here matches the number in the terminal.
  */
 
@@ -76,7 +76,7 @@ export default function Dashboard() {
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
             <span className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--fg)' }}>
-              FlowConX
+              Thalweg
             </span>
           </Link>
 

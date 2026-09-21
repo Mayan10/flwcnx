@@ -391,9 +391,9 @@ def fig_phase_evidence(root: Path, out: Path) -> Path | None:
     Needs the traces, so it is skipped rather than faked when they are absent.
     """
     try:
-        from flwcnx.config import DataConfig
-        from flwcnx.ingest.replay import ReplaySource
-        from flwcnx.state.phase import recover_phase
+        from thalweg.config import DataConfig
+        from thalweg.ingest.replay import ReplaySource
+        from thalweg.state.phase import recover_phase
     except ImportError:                        # pragma: no cover
         return None
 

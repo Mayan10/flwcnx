@@ -31,8 +31,8 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
-from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
-from flwcnx.config import (
+from thalweg.calibrate.adaptive import AdaptiveRegimeCalibrator
+from thalweg.config import (
     CalibrationConfig,
     DataConfig,
     ExperimentConfig,
@@ -41,11 +41,11 @@ from flwcnx.config import (
     SplitConfig,
     StarNetConfig,
 )
-from flwcnx.eval.metrics import conditional_metrics
-from flwcnx.eval.runner import build_backbone, prepare, resolve_device
-from flwcnx.forecast.train import train_model
-from flwcnx.ingest.replay import ReplaySource
-from flwcnx.state.regime import RegimeAssigner
+from thalweg.eval.metrics import conditional_metrics
+from thalweg.eval.runner import build_backbone, prepare, resolve_device
+from thalweg.forecast.train import train_model
+from thalweg.ingest.replay import ReplaySource
+from thalweg.state.regime import RegimeAssigner
 
 GAMMAS = (0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2)
 GRANULARITIES = ("global", "level", "full")
@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n=== {location} === train {len(train)} cal {len(calibration)} "
               f"test {len(test)}")
 
-        from flwcnx.state.regime import presets_for
+        from thalweg.state.regime import presets_for
         presets = presets_for(config.dataset)
         for granularity in args.granularities:
             axes = presets[granularity]

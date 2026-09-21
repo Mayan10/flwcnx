@@ -33,7 +33,7 @@ from pathlib import Path
 
 import numpy as np
 
-from flwcnx.config import (
+from thalweg.config import (
     FEATURE_COLUMNS,
     DataConfig,
     ExperimentConfig,
@@ -43,10 +43,10 @@ from flwcnx.config import (
     resolve_device,
     seed_everything,
 )
-from flwcnx.eval.metrics import compute_metrics
-from flwcnx.eval.runner import build_backbone, prepare
-from flwcnx.forecast.train import inference_latency_ms, train_model
-from flwcnx.ingest.replay import ReplaySource
+from thalweg.eval.metrics import compute_metrics
+from thalweg.eval.runner import build_backbone, prepare
+from thalweg.forecast.train import inference_latency_ms, train_model
+from thalweg.ingest.replay import ReplaySource
 
 PUBLISHED = {
     "usa": {"RMSE": 40.33, "MAE": 29.88},

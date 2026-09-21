@@ -11,16 +11,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
-from flwcnx.calibrate.heterogeneity import (
+from thalweg.calibrate.adaptive import AdaptiveRegimeCalibrator
+from thalweg.calibrate.heterogeneity import (
     GatedCalibrator,
     _chi2_sf,
     assess_regime_heterogeneity,
     cochran_q,
     offset_standard_error,
 )
-from flwcnx.config import CalibrationConfig, RegimeConfig
-from flwcnx.state.regime import RegimeAssigner
+from thalweg.config import CalibrationConfig, RegimeConfig
+from thalweg.state.regime import RegimeAssigner
 
 EPS = 0.35
 

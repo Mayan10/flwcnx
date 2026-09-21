@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "flwcnx"
+name = "thalweg"
 version = "0.1.0"
 description = "Risk-controlled throughput forecasting and bandwidth allocation for Starlink access links."
 requires-python = ">=3.11"
@@ -48,14 +48,14 @@ orbital = ["sgp4>=2.23", "skyfield>=1.48"]
 # environment lints against an older rule set and passes work that CI rejects.
 # That is how UP042 reached main: ruff 0.9 did not have the rule and 0.16 does.
 dev = ["pytest>=8.0", "ruff>=0.16"]
-# The FastAPI server in flwcnx/api that streams DemoEngine decisions to the TUI.
+# The FastAPI server in thalweg/api that streams DemoEngine decisions to the TUI.
 api = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "websockets>=12.0"]
 
 [project.urls]
-Repository = "https://github.com/Mayan10/flwcnx"
+Repository = "https://github.com/Mayan10/thalweg"
 
 [tool.setuptools.packages.find]
-include = ["flwcnx*"]
+include = ["thalweg*"]
 
 [tool.ruff]
 line-length = 100

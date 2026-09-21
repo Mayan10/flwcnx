@@ -6,19 +6,19 @@ import numpy as np
 import pytest
 import torch
 
-from flwcnx.config import StarNetConfig
-from flwcnx.forecast.baselines import (
+from thalweg.config import StarNetConfig
+from thalweg.forecast.baselines import (
     DLinear,
     XGBoostForecaster,
     build_baseline,
 )
-from flwcnx.forecast.starnet import (
+from thalweg.forecast.starnet import (
     StarNet,
     StarNetNoAttention,
     StarNetNoPeriodicalEmbedding,
     count_parameters,
 )
-from flwcnx.forecast.train import train_model
+from thalweg.forecast.train import train_model
 
 CLASS_SLICES = {
     "throughput": [0],

@@ -35,8 +35,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from flwcnx.calibrate.bgcfqs import BGCFQS
-from flwcnx.config import (
+from thalweg.calibrate.bgcfqs import BGCFQS
+from thalweg.config import (
     BGCFQS_ALIASES,
     BGCFQSConfig,
     DataConfig,
@@ -45,12 +45,12 @@ from flwcnx.config import (
     SplitConfig,
     seed_everything,
 )
-from flwcnx.eval.figures import conditional_over_rate
-from flwcnx.eval.metrics import conditional_metrics
-from flwcnx.eval.runner import prepare
-from flwcnx.forecast.baselines import XGBoostForecaster
-from flwcnx.ingest.replay import ReplaySource
-from flwcnx.state.features import flatten_for_tabular
+from thalweg.eval.figures import conditional_over_rate
+from thalweg.eval.metrics import conditional_metrics
+from thalweg.eval.runner import prepare
+from thalweg.forecast.baselines import XGBoostForecaster
+from thalweg.ingest.replay import ReplaySource
+from thalweg.state.features import flatten_for_tabular
 
 # The date ranges BG-CFQS process, so the comparison is apples to apples.
 BGCFQS_RANGES = {

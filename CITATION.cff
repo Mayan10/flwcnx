@@ -4,7 +4,7 @@ message: >-
   measurement findings, please also cite the works being evaluated: Liu et al.
   2025 for the StarNet traces and backbone, Xie et al. 2026 for BG-CFQS, and
   Laniewski et al. 2024 for WetLinks.
-title: "flwcnx: risk-controlled throughput forecasting for Starlink access links"
+title: "thalweg: risk-controlled throughput forecasting for Starlink access links"
 abstract: >-
   A reproduction and evaluation study of risk-budgeted throughput forecasting
   for LEO satellite access links. Reproduces StarNet and BG-CFQS, shows the
@@ -21,7 +21,7 @@ authors:
     given-names: Kriti
   - family-names: Behl
     given-names: Devansh
-repository-code: "https://github.com/Mayan10/flwcnx"
+repository-code: "https://github.com/Mayan10/thalweg"
 license: MIT
 version: 0.1.0
 date-released: "2026-09-02"

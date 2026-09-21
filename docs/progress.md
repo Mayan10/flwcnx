@@ -375,10 +375,10 @@ weakest and `docs/paper/report.md` section 5.4 says so with the numbers.
 
 Status: done, 2026-09-02.
 
-**Device.** `flwcnx/device.py` replaces a device check that was Mac-shaped: it
+**Device.** `thalweg/device.py` replaces a device check that was Mac-shaped: it
 called `torch.backends.mps.is_available()` unguarded, which raises
 `AttributeError` on a torch build without that backend, during setup and before
-any useful message. Detection is now guarded, `FLWCNX_DEVICE` overrides
+any useful message. Detection is now guarded, `THALWEG_DEVICE` overrides
 everything, and an unavailable request warns and falls back rather than failing,
 because a run on a borrowed laptop is still valid, only slower. Verified end to
 end on CPU. Every result file now records the device it ran on, which is what
@@ -520,13 +520,13 @@ line sideways against the others.
 
 Status: done, 2026-09-21.
 
-The package had been sitting at `newml/flwcnx/`, two directories below the
+The package had been sitting at `newml/thalweg/`, two directories below the
 front page, with a second and much thinner README at the root. The effect was
 that the README carrying all sixteen figures, the findings and the limitations
 was the one nobody landed on, and `newml/` named nothing: it held exactly one
 directory, which held the project.
 
-The package is the repository now. `flwcnx/`, `docs/`, `scripts/`, `tests/`,
+The package is the repository now. `thalweg/`, `docs/`, `scripts/`, `tests/`,
 `results/`, `pyproject.toml`, `LICENSE` and `CITATION.cff` are at the root, and
 the research README is the root README with the platform overview folded into
 it as a section rather than kept as a competing document. The web console, the
@@ -545,3 +545,28 @@ Checked rather than assumed: the package installs and imports from the new root,
 lint is clean, all 323 tests pass, and every figure and committed table
 regenerates byte-identically, which is what says the move changed no content.
 Git recorded 211 renames, so file history survives.
+
+### Phase 10b. The name
+
+`flwcnx` was a disemvowelled abbreviation: it could not be pronounced, spelled
+from hearing or guessed at, and the platform carried a second name, `FlowConX`,
+which is not a thing a project should have. **Thalweg** replaces both. A thalweg
+is the line of lowest points along a channel, the floor of a riverbed and the
+reference a survey is taken against, which is what a calibrated lower bound is.
+It was checked free on PyPI and clear of any notable repository on GitHub before
+being chosen; the four earlier candidates were not.
+
+The rename touched 98 text files plus the package directory. Python package and
+every import, the `THALWEG_*` environment variables, the Rust crate and so its
+binary name, the API title, the brand strings in both consoles, the Postgres
+role and database in compose, the repository URLs in the README badges,
+`pyproject.toml`, `CITATION.cff` and this file's own header.
+
+Checked rather than assumed: the package installs and imports under the new
+name, lint is clean, all 323 tests pass, `cargo check` passes on the renamed
+crate, and all sixteen figures regenerate **byte-identically**. The only change
+in the committed tables is the one path string they quote.
+
+An existing compose stack needs `docker compose down -v` once, because the
+Postgres role and database were renamed and an old volume still holds the old
+ones.

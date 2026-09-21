@@ -154,7 +154,7 @@ and assumed nanoseconds. Locally the columns were nanoseconds and everything
 worked; on the runner they were not, the scheduling-phase aliasing guard
 inverted its answer, and thirteen tests failed.
 
-Fixed in `flwcnx/timeutil.py` with regression tests at all four resolutions.
+Fixed in `thalweg/timeutil.py` with regression tests at all four resolutions.
 
 **What this implies for the reported results, stated rather than assumed.** The
 runs behind `results/summary/` were executed before the fix, on the machine
@@ -177,7 +177,7 @@ number about `decide/flows.py` and `decide/protect.py`.
 series is the calibrated bound and the realised throughput from a trained
 pipeline over the real StarNet traces, which is as real as anything else in
 this repository. The flows contending for it come from
-`flwcnx/eval/workload.py` and are generated.
+`thalweg/eval/workload.py` and are generated.
 
 There was no alternative. The protection layer needs per-flow evidence and
 per-flow ground truth, and neither StarNet nor WetLinks carries either: both

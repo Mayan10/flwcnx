@@ -22,12 +22,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Install dependencies before copying the source so code edits reuse this layer.
 COPY pyproject.toml README.md LICENSE ./
 RUN --mount=type=cache,target=/root/.cache/pip \
-    mkdir flwcnx && touch flwcnx/__init__.py && \
+    mkdir thalweg && touch thalweg/__init__.py && \
     pip install -e ".[api]" && \
-    rm -rf flwcnx
+    rm -rf thalweg
 
-COPY flwcnx ./flwcnx
+COPY thalweg ./thalweg
 
 EXPOSE 8000
 
-CMD ["python", "-m", "flwcnx.api.server", "--mode", "synthetic", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "thalweg.api.server", "--mode", "synthetic", "--host", "0.0.0.0", "--port", "8000"]

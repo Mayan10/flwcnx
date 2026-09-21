@@ -87,7 +87,7 @@ function TuiScreen() {
               marginLeft: "4px",
             }}
           >
-            FlowConX
+            Thalweg
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -254,7 +254,7 @@ function TuiScreen() {
             Quit
           </span>
         </span>
-        <span style={{ color: C.fgGhost, fontSize: "11px" }}>flowconx.dev</span>
+        <span style={{ color: C.fgGhost, fontSize: "11px" }}>thalweg.dev</span>
       </div>
     </div>
   );
@@ -298,7 +298,7 @@ export function Hero() {
             className="text-[12.5px] font-medium"
             style={{ color: "var(--fg-muted)" }}
           >
-            Introducing FlowConX Core 1.0
+            Introducing Thalweg Core 1.0
           </span>
           <svg
             width="12"

@@ -3,16 +3,20 @@ version: '3.8'
 services:
   db:
     image: postgres:15
+    # The role and database were renamed with the project. A volume created
+    # before that still holds the old ones and Postgres ignores these variables
+    # when PGDATA already exists, so an existing stack needs one
+    # `docker compose down -v` before it will come up again.
     environment:
-      POSTGRES_USER: flowconx
+      POSTGRES_USER: thalweg
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: flowconx_db
+      POSTGRES_DB: thalweg_db
     ports:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flowconx -d flowconx_db"]
+      test: ["CMD-SHELL", "pg_isready -U thalweg -d thalweg_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,7 +27,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - DATABASE_URL=postgresql://flowconx:password@db:5432/flowconx_db
+      - DATABASE_URL=postgresql://thalweg:password@db:5432/thalweg_db
       - JWT_SECRET=supersecretjwtkeythatshouldbechangedinprod
       - PORT=3001
     depends_on:

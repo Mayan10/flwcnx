@@ -64,7 +64,7 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
 
     let cols = Layout::horizontal([Constraint::Min(0), Constraint::Length(34)]).split(rows[1]);
 
-    let brand = Line::from(vec![Span::raw(" "), Span::styled("FlowConX", theme::brand())]);
+    let brand = Line::from(vec![Span::raw(" "), Span::styled("Thalweg", theme::brand())]);
     frame.render_widget(Paragraph::new(brand).style(theme::bg()), cols[0]);
 
     let (label, color) = if app.is_authenticated() {

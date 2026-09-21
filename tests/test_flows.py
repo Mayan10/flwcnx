@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from flwcnx.decide.flows import (
+from thalweg.decide.flows import (
     CLASS_PRIOR_LOG_ODDS,
     CriticalityScorer,
     FlowClass,
@@ -166,7 +166,7 @@ def test_attention_is_asymmetric():
 def test_volume_never_outvotes_the_rest():
     """The channel that could reconstruct the failure this layer prevents is
     capped below any two of the others."""
-    from flwcnx.decide.flows import CHANNEL_WEIGHTS
+    from thalweg.decide.flows import CHANNEL_WEIGHTS
 
     others = sorted(v for k, v in CHANNEL_WEIGHTS.items() if k != "volume")
     assert CHANNEL_WEIGHTS["volume"] < others[0] + others[1]

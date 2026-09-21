@@ -1,4 +1,4 @@
-% flwcnx bibliography. Twenty-four entries, grouped by why they are here.
+% thalweg bibliography. Twenty-four entries, grouped by why they are here.
 % Every entry must be cited somewhere in the writeup. Do not pad.
 
 % ---------------------------------------------------------------------------
@@ -333,7 +333,7 @@
   year    = {2022}
 }
 
-% The heterogeneity test in flwcnx/calibrate/heterogeneity.py. Cochran gives the
+% The heterogeneity test in thalweg/calibrate/heterogeneity.py. Cochran gives the
 % statistic, Higgins and Thompson the effect size that accompanies it. Both are
 % from meta-analysis and both predate every conformal paper in this file.
 @article{cochran1954combination,
@@ -357,7 +357,7 @@
 }
 
 % The standard error of an empirical quantile, used to weight Cochran's Q in
-% flwcnx/calibrate/heterogeneity.py.
+% thalweg/calibrate/heterogeneity.py.
 @article{siddiqui1960distribution,
   author  = {Siddiqui, M. M.},
   title   = {Distribution of Quantiles in Samples from a Bivariate Population},
@@ -368,7 +368,7 @@
 }
 
 % SGP4, used to propagate orbital elements for the reconstructed geometry on the
-% WetLinks path (flwcnx/ingest/tle.py).
+% WetLinks path (thalweg/ingest/tle.py).
 @techreport{vallado2006revisiting,
   author      = {Vallado, David A. and Crawford, Paul and Hujsak, Richard
                  and Kelso, T. S.},
@@ -379,13 +379,13 @@
 }
 
 % -- The protection layer -----------------------------------------------------
-% Every mechanism in flwcnx/decide/protect.py and flwcnx/decide/flows.py is
+% Every mechanism in thalweg/decide/protect.py and thalweg/decide/flows.py is
 % published. What is specific to this project is the coupling: the allocator
 % divides a calibrated bound rather than a point forecast. These entries are
 % the provenance for that claim.
 
 % Weighted max-min fairness and progressive filling, which is the allocation
-% rule in flwcnx/decide/protect.py, section 6.5.2.
+% rule in thalweg/decide/protect.py, section 6.5.2.
 @book{bertsekas1992data,
   author    = {Bertsekas, Dimitri P. and Gallager, Robert G.},
   title     = {Data Networks},
@@ -429,7 +429,7 @@
 }
 
 % Deadline-driven flow scheduling. The deadline channel in
-% flwcnx/decide/flows.py is this idea used as evidence about criticality rather
+% thalweg/decide/flows.py is this idea used as evidence about criticality rather
 % than as the scheduling objective itself.
 @inproceedings{wilson2011better,
   author    = {Wilson, Christo and Ballani, Hitesh and Karagiannis, Thomas and
@@ -457,7 +457,7 @@
   year      = {2016}
 }
 
-% Jain's index, used in flwcnx/eval/protection.py over delivered-over-demanded
+% Jain's index, used in thalweg/eval/protection.py over delivered-over-demanded
 % within the class the layer claims to treat alike.
 @techreport{jain1984quantitative,
   author      = {Jain, Rajendra K. and Chiu, Dah-Ming W. and Hawe, William R.},
@@ -469,7 +469,7 @@
 }
 
 % Sequential evidence accumulation in log-odds, which is the form of the
-% criticality update in flwcnx/decide/flows.py.
+% criticality update in thalweg/decide/flows.py.
 @article{wald1945sequential,
   author  = {Wald, Abraham},
   title   = {Sequential Tests of Statistical Hypotheses},

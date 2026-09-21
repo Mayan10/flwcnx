@@ -396,7 +396,7 @@ python scripts/reproduce_starnet.py --location all      # gate 1
 python scripts/reproduce_bgcfqs.py --all --stride 15    # gate 2
 python scripts/split_sensitivity.py                     # the split finding
 python scripts/gamma_sensitivity.py                     # learning-rate robustness
-python -m flwcnx.eval.runner --location usa --stride 6  # the full grid
+python -m thalweg.eval.runner --location usa --stride 6  # the full grid
 python scripts/run_demo.py --location canada            # the demonstration
 ```
 

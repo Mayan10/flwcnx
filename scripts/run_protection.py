@@ -4,7 +4,7 @@
 Trains the forecaster, seeds the calibrator and streams the test split through
 the decision layer exactly as `run_demo.py` does, then hands the per-slot
 calibrated bound and realised throughput to the protection layer and contends
-for them with the labelled flow workload in `flwcnx/eval/workload.py`.
+for them with the labelled flow workload in `thalweg/eval/workload.py`.
 
 **The capacity is measured and the flows are a model.** No public LEO dataset
 carries a flow table, process attribution or a user-attention signal, so every
@@ -40,8 +40,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
-from flwcnx.config import (
+from thalweg.calibrate.adaptive import AdaptiveRegimeCalibrator
+from thalweg.config import (
     CalibrationConfig,
     DataConfig,
     DecisionConfig,
@@ -51,15 +51,15 @@ from flwcnx.config import (
     SplitConfig,
     StarNetConfig,
 )
-from flwcnx.decide.flows import CHANNEL_WEIGHTS, ScorerConfig
-from flwcnx.decide.protect import ProtectionConfig
-from flwcnx.demo import DemoEngine, records_to_frame
-from flwcnx.eval.protection import ORACLE, PolicyRun, run_policy
-from flwcnx.eval.runner import build_backbone, prepare, resolve_device
-from flwcnx.eval.workload import WorkloadSpec, archetype_table
-from flwcnx.forecast.train import train_model
-from flwcnx.ingest.replay import ReplaySource
-from flwcnx.state.regime import RegimeAssigner, presets_for
+from thalweg.decide.flows import CHANNEL_WEIGHTS, ScorerConfig
+from thalweg.decide.protect import ProtectionConfig
+from thalweg.demo import DemoEngine, records_to_frame
+from thalweg.eval.protection import ORACLE, PolicyRun, run_policy
+from thalweg.eval.runner import build_backbone, prepare, resolve_device
+from thalweg.eval.workload import WorkloadSpec, archetype_table
+from thalweg.forecast.train import train_model
+from thalweg.ingest.replay import ReplaySource
+from thalweg.state.regime import RegimeAssigner, presets_for
 
 ALL_POLICIES = [ORACLE, "protected", "by_class", "equal_share", "shed_largest"]
 

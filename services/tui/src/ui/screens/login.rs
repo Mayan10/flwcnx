@@ -55,7 +55,7 @@ fn render_card(frame: &mut Frame, app: &App, area: Rect) {
 
     let mut lines: Vec<Line> = vec![
         Line::from(Span::styled(
-            "Verify your FlowConX API key to unlock the console.",
+            "Verify your Thalweg API key to unlock the console.",
             theme::text_secondary(),
         )),
         Line::from(Span::styled(

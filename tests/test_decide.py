@@ -5,13 +5,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from flwcnx.decide.admission import (
+from thalweg.decide.admission import (
     admit_sessions,
     evaluate_admission,
     relative_reduction,
     run_admission,
 )
-from flwcnx.decide.congestion import (
+from thalweg.decide.congestion import (
     congestion_episodes,
     detect_congestion,
     sustained,

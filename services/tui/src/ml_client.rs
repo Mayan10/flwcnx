@@ -1,4 +1,4 @@
-//! WebSocket client for the flwcnx ML API server.
+//! WebSocket client for the thalweg ML API server.
 //!
 //! Connects to the FastAPI WebSocket at `/ws/ml/stream`, deserializes
 //! `DecisionRecord` JSON messages, and pushes them into an mpsc channel
@@ -86,7 +86,7 @@ const MAX_BACKOFF_SECS: u64 = 30;
 /// Spawn the WebSocket client as a background tokio task. Returns the
 /// receiving end of the channel; the task runs until the sender is dropped.
 pub fn spawn_ml_client(tx: mpsc::Sender<MlMessage>) {
-    let url = std::env::var("FLWCNX_API_URL").unwrap_or_else(|_| DEFAULT_URL.to_string());
+    let url = std::env::var("THALWEG_API_URL").unwrap_or_else(|_| DEFAULT_URL.to_string());
 
     tokio::spawn(async move {
         let mut backoff: u64 = 1;

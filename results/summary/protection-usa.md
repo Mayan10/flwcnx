@@ -2,7 +2,7 @@
 
 Run `results/protection/usa`, 2,000 decisions, 5 workload seeds, seed 1337. Config snapshot and environment are in `result.json`.
 
-**The capacity is measured and the flows are a model.** No public LEO dataset carries a flow table, process attribution or a user-attention signal, so the capacity series below is the calibrated bound and the realised throughput from a trained pipeline over the real traces, and the flows contending for it come from `flwcnx/eval/workload.py`. Every number here is a number about that workload.
+**The capacity is measured and the flows are a model.** No public LEO dataset carries a flow table, process attribution or a user-attention signal, so the capacity series below is the calibrated bound and the realised throughput from a trained pipeline over the real traces, and the flows contending for it come from `thalweg/eval/workload.py`. Every number here is a number about that workload.
 
 | capacity series | |
 |---|---|

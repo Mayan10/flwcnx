@@ -621,7 +621,7 @@ def fig_evidence(run: Path, out: Path) -> Path | None:
     # Diverging: two hues from the validated set, with the surface as the
     # neutral midpoint. Never a hue at the middle of a diverging ramp.
     ramp = matplotlib.colors.LinearSegmentedColormap.from_list(
-        "flwcnx-diverging", [ORANGE, SURFACE, BLUE])
+        "thalweg-diverging", [ORANGE, SURFACE, BLUE])
 
     fig, (heat, line) = plt.subplots(2, 1, figsize=(9.0, 5.8), sharex=True,
                                      gridspec_kw={"height_ratios": [2.2, 1.0],

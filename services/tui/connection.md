@@ -1,8 +1,8 @@
-# FlowConX ML ↔ TUI Connection Architecture
+# Thalweg ML ↔ TUI Connection Architecture
 
 ## Overview
 
-The FlowConX system connects three components for real-time satellite throughput monitoring:
+The Thalweg system connects three components for real-time satellite throughput monitoring:
 
 ```
 ┌──────────────────────┐      WebSocket        ┌──────────────────┐
@@ -12,7 +12,7 @@ The FlowConX system connects three components for real-time satellite throughput
 └──────────────────────┘                       └──────────────────┘
          │                                              │
     DemoEngine                                     HTTP REST
-    (flwcnx pipeline)                          ┌──────────────────┐
+    (thalweg pipeline)                          ┌──────────────────┐
                                                │  Node.js Backend │
                                                │  (Express)       │
                                                │  Port 3001       │
@@ -20,14 +20,14 @@ The FlowConX system connects three components for real-time satellite throughput
                                                   Auth / Company
 ```
 
-## ML API Server (`flwcnx/api/server.py`)
+## ML API Server (`thalweg/api/server.py`)
 
 Every decision comes from the real pipeline: StarNet forecast → regime
-assignment → adaptive safe bound → admission → congestion (`flwcnx.demo.DemoEngine`,
-wired up in `flwcnx/api/pipeline.py`). The mode only picks which trace
+assignment → adaptive safe bound → admission → congestion (`thalweg.demo.DemoEngine`,
+wired up in `thalweg/api/pipeline.py`). The mode only picks which trace
 is replayed:
 
-- **synthetic** (default): the generated trace from `flwcnx/ingest/synthetic.py`
+- **synthetic** (default): the generated trace from `thalweg/ingest/synthetic.py`
   (15 s scheduling period, handover dip, satellite geometry). No data needed.
 - **real**: the recorded StarNet traces under `data/starnet/<location>`.
 
@@ -44,8 +44,8 @@ docker compose up -d ml-api
 
 # Local
 pip install -e ".[api]"
-python -m flwcnx.api.server --mode synthetic --port 8010
-python -m flwcnx.api.server --mode real --location canada --port 8010
+python -m thalweg.api.server --mode synthetic --port 8010
+python -m thalweg.api.server --mode real --location canada --port 8010
 ```
 
 Options: `--epsilon` (0.35), `--epochs` (5), `--stride` (2), `--commitment` (150 Mbps),
@@ -155,7 +155,7 @@ If no config is received, defaults are used.
 
 The TUI spawns a background tokio task on startup that:
 
-1. Connects to `ws://127.0.0.1:8010/ws/ml/stream` (override with `FLWCNX_API_URL` env var).
+1. Connects to `ws://127.0.0.1:8010/ws/ml/stream` (override with `THALWEG_API_URL` env var).
 2. Deserializes each JSON message into Rust structs.
 3. Sends `MlMessage` values through an mpsc channel to the app event loop.
 4. On disconnect, retries with exponential backoff (1s → 2s → 4s → ... → 30s max).
@@ -183,7 +183,7 @@ The event loop drains `ml_rx` every tick (150ms) and pushes new values into the 
 1. Start the ML API server:
    ```bash
    docker compose up -d ml-api
-   # or: python -m flwcnx.api.server --mode synthetic --port 8010
+   # or: python -m thalweg.api.server --mode synthetic --port 8010
    ```
 2. Start the backend (for auth, if needed):
    ```bash
@@ -199,5 +199,5 @@ The event loop drains `ml_rx` every tick (150ms) and pushes new values into the 
 
 | Variable          | Default                             | Description                      |
 |-------------------|-------------------------------------|----------------------------------|
-| `FLWCNX_API_URL`  | `ws://127.0.0.1:8010/ws/ml/stream` | ML WebSocket server URL (TUI)    |
-| `FLWCNX_DEVICE`   | `auto`                              | PyTorch device (cpu/cuda/mps)    |
+| `THALWEG_API_URL`  | `ws://127.0.0.1:8010/ws/ml/stream` | ML WebSocket server URL (TUI)    |
+| `THALWEG_DEVICE`   | `auto`                              | PyTorch device (cpu/cuda/mps)    |

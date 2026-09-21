@@ -8,7 +8,7 @@ something else, so the same code computed the scheduling phase correctly on one
 machine and not the other.
 
 These tests pin the behaviour at every resolution so it cannot come back
-quietly. See `flwcnx/timeutil.py`.
+quietly. See `thalweg/timeutil.py`.
 """
 
 from __future__ import annotations
@@ -17,9 +17,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.ingest.synthetic import SyntheticSpec, generate_frame
-from flwcnx.state.phase import recover_phase, sampling_aliases_period
-from flwcnx.timeutil import to_epoch_nanoseconds, to_epoch_seconds
+from thalweg.ingest.synthetic import SyntheticSpec, generate_frame
+from thalweg.state.phase import recover_phase, sampling_aliases_period
+from thalweg.timeutil import to_epoch_nanoseconds, to_epoch_seconds
 
 UNITS = ["s", "ms", "us", "ns"]
 

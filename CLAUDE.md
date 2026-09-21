@@ -2,7 +2,7 @@
 
 Project instructions for Claude Code. Read this file fully before touching anything in the repo.
 
-Repository: https://github.com/Mayan10/flwcnx (private)
+Repository: https://github.com/Mayan10/thalweg (private)
 Owner: Mayan Sharma (GitHub: Mayan10)
 
 ---
@@ -133,7 +133,7 @@ eval/       harness, splits, metrics, figures
 Proposed package layout:
 
 ```
-flwcnx/
+thalweg/
   __init__.py
   config.py              dataclass config, no globals
   ingest/
@@ -173,7 +173,7 @@ results/                 gitignored except committed summary tables
 ```
 
 **This layout is the repository root**, as of the 2026-09-21 restructure. The
-package spent part of the project nested at `newml/flwcnx/`, which put the
+package spent part of the project nested at `newml/thalweg/`, which put the
 README that carries every figure two directories down from the front page and
 gave the repository a second, thinner README at the top. The web console, the
 terminal console and the accounts service now live under `services/`, and the
@@ -459,7 +459,7 @@ Horizon dataset, leave-one-location-out, the training-window-length question.
 > **Status as of 2026-09-03.** Questions 1, 2 and 4 are answered and the answers
 > are recorded where the work needed them: the supplied dataset is WetLinks
 > (`docs/supplied-dataset.md`), compute is Apple MPS with no CUDA and the project
-> now runs on CPU and CUDA too (`flwcnx/device.py`), and the deliverable is a
+> now runs on CPU and CUDA too (`thalweg/device.py`), and the deliverable is a
 > report, a paper and a demonstration, all three of which exist. Question 3, the
 > deadline, is still unanswered. Questions 5 to 7 were raised by the build and
 > are tracked in `docs/progress.md`.

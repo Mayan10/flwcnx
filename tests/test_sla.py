@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from flwcnx.decide.sla import (
+from thalweg.decide.sla import (
     DEFAULT_CREDIT_TIERS,
     ServiceLevelAgreement,
     availability_report,
@@ -173,7 +173,7 @@ def test_seconds_per_slot_drives_the_time_axis():
 
 def test_break_even_is_zero_when_the_conservative_policy_never_underspends():
     """If it sells everything the aggressive one does, it wins for free."""
-    from flwcnx.decide.sla import break_even_credit_ratio
+    from thalweg.decide.sla import break_even_credit_ratio
     actual = np.full(500, 200.0)
     both = np.full(500, 200.0)
     r = break_even_credit_ratio(both, both, actual, SLA)
@@ -183,7 +183,7 @@ def test_break_even_is_zero_when_the_conservative_policy_never_underspends():
 
 
 def test_break_even_rises_with_how_much_the_conservative_policy_leaves_unsold():
-    from flwcnx.decide.sla import break_even_credit_ratio
+    from thalweg.decide.sla import break_even_credit_ratio
     rng = np.random.default_rng(0)
     actual = rng.normal(200.0, 25.0, 3000).clip(min=0)
     aggressive = np.full(3000, 260.0)
@@ -195,7 +195,7 @@ def test_break_even_rises_with_how_much_the_conservative_policy_leaves_unsold():
 
 
 def test_break_even_accounting_is_consistent():
-    from flwcnx.decide.sla import break_even_credit_ratio
+    from thalweg.decide.sla import break_even_credit_ratio
     rng = np.random.default_rng(5)
     actual = rng.normal(200.0, 25.0, 2000).clip(min=0)
     r = break_even_credit_ratio(np.full(2000, 150.0), np.full(2000, 250.0), actual, SLA)

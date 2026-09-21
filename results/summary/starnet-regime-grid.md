@@ -178,7 +178,7 @@ to carry both.
 ## Reproduce
 
 ```
-python -m flwcnx.eval.runner --location usa --stride 6 --lookback 30 --horizon 5 \
+python -m thalweg.eval.runner --location usa --stride 6 --lookback 30 --horizon 5 \
     --epochs 50 --granularities global phase elevation candidates geometry full \
     level level+geometry level+full --output results/starnet_regime/usa
 ```

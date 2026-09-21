@@ -11,15 +11,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from flwcnx.calibrate.adaptive import (
+from thalweg.calibrate.adaptive import (
     AdaptiveRegimeCalibrator,
     offset_for_alpha,
     static_then_adaptive,
 )
-from flwcnx.calibrate.conformal import fit_conformal
-from flwcnx.config import CalibrationConfig, RegimeConfig
-from flwcnx.eval.metrics import over_rate
-from flwcnx.state.regime import RegimeAssigner
+from thalweg.calibrate.conformal import fit_conformal
+from thalweg.config import CalibrationConfig, RegimeConfig
+from thalweg.eval.metrics import over_rate
+from thalweg.state.regime import RegimeAssigner
 
 EPSILON = 0.2
 

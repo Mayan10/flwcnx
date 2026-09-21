@@ -24,8 +24,8 @@ from pathlib import Path
 
 import numpy as np
 
-from flwcnx.calibrate.adaptive import AdaptiveRegimeCalibrator
-from flwcnx.config import (
+from thalweg.calibrate.adaptive import AdaptiveRegimeCalibrator
+from thalweg.config import (
     CalibrationConfig,
     DataConfig,
     DecisionConfig,
@@ -35,11 +35,11 @@ from flwcnx.config import (
     SplitConfig,
     StarNetConfig,
 )
-from flwcnx.demo import DemoEngine, records_to_frame
-from flwcnx.eval.runner import build_backbone, prepare, resolve_device
-from flwcnx.forecast.train import train_model
-from flwcnx.ingest.replay import ReplaySource
-from flwcnx.state.regime import RegimeAssigner, presets_for
+from thalweg.demo import DemoEngine, records_to_frame
+from thalweg.eval.runner import build_backbone, prepare, resolve_device
+from thalweg.forecast.train import train_model
+from thalweg.ingest.replay import ReplaySource
+from thalweg.state.regime import RegimeAssigner, presets_for
 
 
 def build_page(frame, summary: dict, title: str) -> str:
@@ -233,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     frame.to_csv(args.output / "decisions.csv", index=False)
     (args.output / "summary.json").write_text(json.dumps(summary, indent=2))
-    title = f"flwcnx live replay: {args.location}, budget {args.epsilon:.2f}"
+    title = f"thalweg live replay: {args.location}, budget {args.epsilon:.2f}"
     (args.output / "demo.html").write_text(build_page(frame, summary, title))
 
     print(f"\n  decisions        {summary['n_decisions']:,}")

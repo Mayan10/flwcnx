@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from flwcnx.config import SplitConfig
-from flwcnx.eval.metrics import (
+from thalweg.config import SplitConfig
+from thalweg.eval.metrics import (
     compute_metrics,
     conditional_metrics,
     mean_positive_error,
@@ -16,7 +16,7 @@ from flwcnx.eval.metrics import (
     risk_slice_mask,
     worst_regime_over_rate,
 )
-from flwcnx.eval.splits import (
+from thalweg.eval.splits import (
     check_no_leak,
     contiguous_82,
     leave_one_location_out,
@@ -158,7 +158,7 @@ def test_leave_one_location_out_rejects_an_unknown_location(raw_sequences):
 
 
 def test_concatenated_locations_do_not_share_segment_ids(raw_sequences):
-    from flwcnx.eval.splits import _concatenate
+    from thalweg.eval.splits import _concatenate
 
     half = len(raw_sequences) // 2
     a = raw_sequences.subset(np.arange(0, half))

@@ -38,7 +38,7 @@ export function Footer() {
               marginBottom: "1rem",
             }}
           >
-            Be the first to deploy FlowConX.
+            Be the first to deploy Thalweg.
           </h2>
           <p
             className="mb-10"
@@ -131,7 +131,7 @@ export function Footer() {
               className="text-[13px] font-semibold"
               style={{ color: "var(--fg-subtle)", fontFamily: "var(--font-geist-mono)" }}
             >
-              FlowConX
+              Thalweg
             </span>
           </div>
 
@@ -153,7 +153,7 @@ export function Footer() {
 
           {/* Right: copyright */}
           <span className="text-[12px]" style={{ color: "var(--fg-ghost)" }}>
-            © {new Date().getFullYear()} FlowConX
+            © {new Date().getFullYear()} Thalweg
           </span>
         </div>
       </div>

@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from flwcnx.device import (
+from thalweg.device import (
     available_devices,
     check_memory_budget,
     describe_device,
@@ -44,7 +44,7 @@ def test_an_unavailable_device_warns_and_falls_back_rather_than_failing():
 
 def test_environment_variable_overrides_everything(monkeypatch):
     """What makes a constrained CI runner reproducible without editing config."""
-    monkeypatch.setenv("FLWCNX_DEVICE", "cpu")
+    monkeypatch.setenv("THALWEG_DEVICE", "cpu")
     assert resolve_device("auto") == "cpu"
     assert resolve_device("cuda") == "cpu"
 
@@ -85,7 +85,7 @@ def test_a_run_that_does_not_fit_raises_before_allocating():
     message = str(excinfo.value)
     # The error has to name both escape hatches, or it is just a crash with
     # extra words.
-    assert "FLWCNX_MEMORY_LIMIT_GB" in message
+    assert "THALWEG_MEMORY_LIMIT_GB" in message
     assert "--stride" in message
 
 
@@ -100,7 +100,7 @@ def test_the_suggested_stride_actually_brings_the_run_under_the_limit():
 
 
 def test_the_limit_is_configurable_by_environment(monkeypatch):
-    monkeypatch.setenv("FLWCNX_MEMORY_LIMIT_GB", "0.001")
+    monkeypatch.setenv("THALWEG_MEMORY_LIMIT_GB", "0.001")
     with pytest.raises(MemoryError):
         check_memory_budget(100_000, 30, 13, horizon=5)
 
@@ -109,8 +109,8 @@ def test_windowing_refuses_an_oversized_request_rather_than_dying(monkeypatch):
     """End to end through make_sequences, which is where it bites."""
     import pandas as pd
 
-    from flwcnx.config import FEATURE_COLUMNS, FeatureConfig
-    from flwcnx.state.features import make_sequences
+    from thalweg.config import FEATURE_COLUMNS, FeatureConfig
+    from thalweg.state.features import make_sequences
 
     n = 5000
     frame = pd.DataFrame({c: np.linspace(1.0, 2.0, n) for c in FEATURE_COLUMNS})
@@ -118,7 +118,7 @@ def test_windowing_refuses_an_oversized_request_rather_than_dying(monkeypatch):
     frame["timestamp"] = pd.date_range("2024-05-01", periods=n, freq="1s")
     frame["phase_seconds"] = np.arange(n) % 15
 
-    monkeypatch.setenv("FLWCNX_MEMORY_LIMIT_GB", "0.0001")
+    monkeypatch.setenv("THALWEG_MEMORY_LIMIT_GB", "0.0001")
     with pytest.raises(MemoryError, match="--stride"):
         make_sequences(frame, config=FeatureConfig(lookback=30, horizon=5, stride=1),
                        feature_names=FEATURE_COLUMNS)

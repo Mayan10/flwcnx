@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from flwcnx.config import FEATURE_COLUMNS, FeatureConfig
-from flwcnx.ingest.synthetic import SyntheticSpec, generate_frame
-from flwcnx.state.features import (
+from thalweg.config import FEATURE_COLUMNS, FeatureConfig
+from thalweg.ingest.synthetic import SyntheticSpec, generate_frame
+from thalweg.state.features import (
     Standardizer,
     build_features,
     make_sequences,
