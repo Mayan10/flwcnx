@@ -44,7 +44,10 @@ dependencies = [
 # skyfield is kept because ingest/live.py is written against it for the live
 # path, even though the replay path only needs sgp4.
 orbital = ["sgp4>=2.23", "skyfield>=1.48"]
-dev = ["pytest>=8.0", "ruff>=0.6"]
+# CI installs whatever is latest, so the floor here has to track it or a local
+# environment lints against an older rule set and passes work that CI rejects.
+# That is how UP042 reached main: ruff 0.9 did not have the rule and 0.16 does.
+dev = ["pytest>=8.0", "ruff>=0.16"]
 # The FastAPI server in flwcnx/api that streams DemoEngine decisions to the TUI.
 api = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "websockets>=12.0"]
 

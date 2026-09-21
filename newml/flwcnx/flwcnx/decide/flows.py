@@ -94,7 +94,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 __all__ = [
     "CHANNEL_WEIGHTS",
@@ -109,7 +109,7 @@ __all__ = [
 ]
 
 
-class FlowClass(str, Enum):
+class FlowClass(StrEnum):
     """What a flow says it is.
 
     A declaration is a prior, not a verdict. Trusting it absolutely gives every

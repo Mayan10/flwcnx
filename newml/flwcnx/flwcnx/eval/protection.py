@@ -147,9 +147,13 @@ class PolicyRun:
             # non-critical archetypes ask for anything from 9 to 45 Mbps, so an
             # index over rates would score a correct proportional split as
             # unfair. The share of its own ask is what a flow experiences.
+            #
+            # Columns are selected before the apply rather than dropped inside
+            # it with `include_groups`, whose meaning has changed twice across
+            # pandas 2 and 3. Selecting is equivalent and version independent.
             "ordinary_jain": jain_index(
-                ordinary.groupby("flow_id")
-                .apply(lambda g: _goodput(g), include_groups=False).tolist()),
+                ordinary.groupby("flow_id")[GOODPUT_COLUMNS]
+                .apply(_goodput).tolist()),
 
             # -- the alarm, which is the case where no allocation would do.
             "breach_slot_rate": float(slots["breached"].mean()),
@@ -189,9 +193,14 @@ class PolicyRun:
             "flow_slots": grouped.size(),
             "violation_allocated": grouped["below_floor_allocated"].mean(),
             "violation_delivered": grouped["below_floor_delivered"].mean(),
-            "goodput_ratio": grouped.apply(_goodput, include_groups=False),
+            "goodput_ratio": (self.records.groupby("archetype")[GOODPUT_COLUMNS]
+                              .apply(_goodput)),
             "mean_criticality": grouped["criticality"].mean(),
         }).reset_index()
+
+
+#: The two columns `_goodput` reads, selected before any groupby-apply.
+GOODPUT_COLUMNS = ["delivered_mbps", "demand_mbps"]
 
 
 def _goodput(frame: pd.DataFrame) -> float:
