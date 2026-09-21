@@ -172,6 +172,13 @@ data/                    gitignored
 results/                 gitignored except committed summary tables
 ```
 
+**This layout is the repository root**, as of the 2026-09-21 restructure. The
+package spent part of the project nested at `newml/flwcnx/`, which put the
+README that carries every figure two directories down from the front page and
+gave the repository a second, thinner README at the top. The web console, the
+terminal console and the accounts service now live under `services/`, and the
+Dockerfile that builds the ML service is at the root and builds from it.
+
 ### Two ingestion modes
 
 Build `LiveSource` and `ReplaySource` behind one interface from day one. Mayan almost certainly does not have a Starlink dish, so `ReplaySource` over the published StarNet CSVs is the real path. `LiveSource` can stay a stub that raises `NotImplementedError` on `connect()`, but the interface must exist so the architecture is honest rather than a notebook wearing a diagram.

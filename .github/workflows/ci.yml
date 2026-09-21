@@ -1,6 +1,6 @@
 name: CI
 
-# The badges in newml/flwcnx/README.md point at this workflow. They are meant to report
+# The badges in README.md point at this workflow. They are meant to report
 # something real, so this runs the same two commands the project is developed
 # against: ruff for lint, pytest for the suite. Neither needs the datasets,
 # because every test runs on synthetic fixtures by design.
@@ -20,13 +20,6 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
 
-    defaults:
-      run:
-        # The research package moved under newml/flwcnx when the platform was
-        # added. The workflow has to stay at the repository root, because that
-        # is the only place GitHub Actions reads workflows from.
-        working-directory: newml/flwcnx
-
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +28,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: newml/flwcnx/pyproject.toml
+          cache-dependency-path: pyproject.toml
 
       - name: Install
         run: |

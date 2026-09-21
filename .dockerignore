@@ -1,0 +1,23 @@
+# The build context is the repository root, so this file is what keeps the
+# consoles, the datasets and the results out of the image.
+**/.git
+**/.DS_Store
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.venv
+**/*.egg-info
+
+# Everything the ML service does not need.
+services/
+data/
+results/
+docs/
+tests/
+scripts/
+.github/
+.claude/
+.env
+.env.*
+!.env.example

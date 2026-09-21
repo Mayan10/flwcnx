@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Live decision stream from the flwcnx ML API (`newml/flwcnx/flwcnx/api`).
+ * Live decision stream from the flwcnx ML API (`flwcnx/api`).
  *
  * The same WebSocket the terminal UI reads: an optional `status` while the
  * forecaster trains, one `init`, then a `decision` per second. The hook keeps a

@@ -21,7 +21,6 @@ more to stay readable.
 ### Terminal 1: the ML service
 
 ```bash
-cd newml/flwcnx
 python -m pip install -e ".[api]"          # once
 python -m flwcnx.api.server --mode synthetic --port 8010
 ```

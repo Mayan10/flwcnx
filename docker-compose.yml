@@ -19,7 +19,7 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./services/backend
     ports:
       - "3001:3001"
     environment:
@@ -32,13 +32,15 @@ services:
 
   ml-api:
     build:
-      context: ./newml
+      # The repository root: the research package lives there and the image is
+      # built from it. .dockerignore keeps the consoles and the data out.
+      context: .
     ports:
       - "8010:8000"
 
   webui:
     build:
-      context: ./webui
+      context: ./services/webui
       args:
         # Browser-side URLs, so these are host addresses rather than compose
         # service names. The /api suffix matters: the backend mounts its

@@ -1,6 +1,13 @@
+# The ML decision service: the research package with its FastAPI server.
+#
+# The build context is the repository root, because that is where the package
+# now lives. Everything the image does not need is excluded in .dockerignore,
+# which matters more here than it did when the context was a subdirectory:
+# the consoles, their node_modules and the recorded results are all in the
+# context now and none of them belong in the image.
 FROM python:3.11-slim
 
-WORKDIR /app/flwcnx
+WORKDIR /app
 
 # The pip cache is a BuildKit cache mount, so a build interrupted by a network
 # timeout keeps what it already downloaded and the retry resumes from there.
@@ -13,13 +20,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         --extra-index-url https://pypi.org/simple
 
 # Install dependencies before copying the source so code edits reuse this layer.
-COPY flwcnx/pyproject.toml flwcnx/README.md flwcnx/LICENSE ./
+COPY pyproject.toml README.md LICENSE ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     mkdir flwcnx && touch flwcnx/__init__.py && \
     pip install -e ".[api]" && \
     rm -rf flwcnx
 
-COPY flwcnx/flwcnx ./flwcnx
+COPY flwcnx ./flwcnx
 
 EXPOSE 8000
 

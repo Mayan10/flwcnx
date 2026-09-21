@@ -515,3 +515,33 @@ drawn with the other. Both use unconstrained demand now. The measured offered
 load cannot be a shared axis, because it falls when elastic transfers back off
 and by a different amount under each policy, which would shift every policy's
 line sideways against the others.
+
+## Phase 10. The repository, flattened
+
+Status: done, 2026-09-21.
+
+The package had been sitting at `newml/flwcnx/`, two directories below the
+front page, with a second and much thinner README at the root. The effect was
+that the README carrying all sixteen figures, the findings and the limitations
+was the one nobody landed on, and `newml/` named nothing: it held exactly one
+directory, which held the project.
+
+The package is the repository now. `flwcnx/`, `docs/`, `scripts/`, `tests/`,
+`results/`, `pyproject.toml`, `LICENSE` and `CITATION.cff` are at the root, and
+the research README is the root README with the platform overview folded into
+it as a section rather than kept as a competing document. The web console, the
+terminal console and the accounts service moved to `services/`. `DEMO.md`
+became `docs/demo-runbook.md`, which is where the rest of the prose already
+lived.
+
+Everything that referred to the old paths was rewritten in the same commit: the
+CI workflow's `working-directory` and pip cache key, the compose build contexts,
+the ML Dockerfile and its `.dockerignore` (which now matters more, since the
+build context is the whole repository rather than one subdirectory), the two
+`.gitignore` files merged into one, and the path comments in the TUI protocol
+notes and the web console's stream client.
+
+Checked rather than assumed: the package installs and imports from the new root,
+lint is clean, all 323 tests pass, and every figure and committed table
+regenerates byte-identically, which is what says the move changed no content.
+Git recorded 211 renames, so file history survives.

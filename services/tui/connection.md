@@ -20,11 +20,11 @@ The FlowConX system connects three components for real-time satellite throughput
                                                   Auth / Company
 ```
 
-## ML API Server (`newml/flwcnx/flwcnx/api/server.py`)
+## ML API Server (`flwcnx/api/server.py`)
 
-Every decision comes from the real newml pipeline: StarNet forecast → regime
+Every decision comes from the real pipeline: StarNet forecast → regime
 assignment → adaptive safe bound → admission → congestion (`flwcnx.demo.DemoEngine`,
-wired up in `newml/flwcnx/flwcnx/api/pipeline.py`). The mode only picks which trace
+wired up in `flwcnx/api/pipeline.py`). The mode only picks which trace
 is replayed:
 
 - **synthetic** (default): the generated trace from `flwcnx/ingest/synthetic.py`
@@ -39,11 +39,11 @@ split is replayed in a loop through one engine, so the stream never ends.
 ### Startup
 
 ```bash
-# Docker (docker-compose.yml builds ./newml, host port 8010 -> container 8000)
+# Docker (docker-compose.yml builds the repository root, host 8010 -> container 8000)
 docker compose up -d ml-api
 
 # Local
-cd newml/flwcnx && pip install -e ".[api]"
+pip install -e ".[api]"
 python -m flwcnx.api.server --mode synthetic --port 8010
 python -m flwcnx.api.server --mode real --location canada --port 8010
 ```
@@ -183,7 +183,7 @@ The event loop drains `ml_rx` every tick (150ms) and pushes new values into the 
 1. Start the ML API server:
    ```bash
    docker compose up -d ml-api
-   # or: cd newml/flwcnx && python -m flwcnx.api.server --mode synthetic --port 8010
+   # or: python -m flwcnx.api.server --mode synthetic --port 8010
    ```
 2. Start the backend (for auth, if needed):
    ```bash
